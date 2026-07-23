@@ -116,10 +116,10 @@ def dup_key(name, rules):
 
 
 def classify_project(project, ch, rules, dup_role, keep_name=None):
-    """对单个项目返回 {green:[], yellow:[], red:[], has_finished, size_kb}。
-    dup_role: 'keep' | 'archive' | 'solo' —— 由频道级判重决定。
-    keep_name: 当 dup_role=='archive' 时，同组保留下来的最新版项目名。"""
-    R = {"green": [], "yellow": [], "red": [], "protected_paths": []}
+    """对单个项目返回 {green:[], yellow:[], red:[], uncat:[], total_kb}。
+    全量记账：du 每个子项，规则不认识的大块进 uncat（❓未归类），不留隐形区。
+    dup_role: 'keep' | 'archive' | 'solo'；keep_name=同组保留的最新版名。"""
+    R = {"green": [], "yellow": [], "red": [], "protected_paths": [], "total_kb": 0}
     pname = os.path.basename(project)
     has_finished = glob_hit(project, ch["finished_globs"])
     R["has_finished"] = has_finished
@@ -134,17 +134,20 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
         return R
 
     min_kb = rules["min_report_mb"] * 1024
+    uncat_kb_min = rules.get("uncat_min_mb", 300) * 1024
+    misc_kb = 0  # 未归类的小碎片累计
     for name in children:
         cpath = os.path.join(project, name)
-        if os.path.islink(cpath):
+        if os.path.islink(cpath) or name.startswith("."):
             continue
         is_dir = os.path.isdir(cpath)
+        kb = du_kb(cpath)          # 全量记账：每个子项都 du
+        R["total_kb"] += kb
 
-        # 🔴 受保护目录/文件 → 必留，登记但不给按钮
+        # 🔴 受保护目录/文件 → 必留（已记账，不给按钮）
         if is_dir and name in rules["protected_dirs"]:
-            continue  # 定稿源目录，不占大不单列
+            continue
         if (not is_dir) and match_any(name, rules["protected_file_globs"]):
-            kb = du_kb(cpath)
             R["red"].append({"name": "%s / %s" % (pname, name), "path": cpath,
                              "size": human(kb),
                              "why_keep": "成片/定稿，本工具硬保护，永不删。",
@@ -154,7 +157,6 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
 
         # 死重量垃圾（旧版_不要使用 等）→ 无条件 🟢
         if match_any(name, rules["junk_names"]):
-            kb = du_kb(cpath)
             if kb < 1024:
                 continue
             R["green"].append(_green_item(pname, name, cpath, kb,
@@ -164,7 +166,6 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
         # 🟢 中间产物目录
         if is_dir and (name in rules["intermediate_dirs"]
                        or match_any(name, rules["intermediate_dirs"])):
-            kb = du_kb(cpath)
             if kb < min_kb:
                 continue
             if has_finished:
@@ -173,7 +174,7 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
             else:
                 # 未出成片 → 不敢删，降级为需人工
                 R["yellow"].append({"name": "%s / %s" % (pname, name), "path": cpath,
-                    "size": human(kb),
+                    "size": human(kb), "bucket": "bulk",
                     "content_profile": "中间产物（%s）" % name,
                     "why_manual": "本期【未检测到成片】，删了可能白跑一轮，需你确认是否已发布/已废弃。",
                     "disposal": "确认已出片或已弃 → 移废纸篓；否则先出片。",
@@ -182,12 +183,23 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
 
         # 🟢 中间产物散文件（顶层 preview/临时/副本 等）
         if (not is_dir) and match_any(name, rules["intermediate_file_globs"]):
-            kb = du_kb(cpath)
             if kb < min_kb:
                 continue
             R["green"].append(_green_item(pname, name, cpath, kb,
                               "过程/预览/副本文件，可回收。", bucket="junk"))
             continue
+
+        # ❓ 规则不认识的大块 → 未归类台（消灭隐形区的关键）
+        if kb >= uncat_kb_min:
+            R["yellow"].append({"name": "%s / %s" % (pname, name), "path": cpath,
+                "size": human(kb), "bucket": "uncat",
+                "content_profile": "未归类%s（%s）" % ("目录" if is_dir else "文件", name),
+                "why_manual": "工具的规则不认识它，但它确实占着 %s。打开看一眼是什么再决定。" % human(kb),
+                "disposal": "在访达打开确认内容 → 没用就移废纸篓。",
+                "risk": "删前务必确认不是唯一副本的成片/素材。"})
+        else:
+            misc_kb += kb
+    R["misc_kb"] = misc_kb
 
     # 🟢 嵌套子路径中间产物（如 audio/tts）
     for sub in rules.get("intermediate_subpaths", []):
@@ -360,6 +372,7 @@ def main():
 
     green, yellow, red, protected = [], [], [], set()
     total_projects = 0
+    accounted_kb = 0  # 全量记账：所有被 du 过的字节
 
     for ci, ch in enumerate(channels, 1):
         projects = list_projects(ch)
@@ -391,11 +404,44 @@ def main():
             yellow += r["yellow"]
             red += r["red"]
             protected.update(r["protected_paths"])
+            accounted_kb += r.get("total_kb", 0)
 
-    # 通用磁盘维度（卡兹克那套真正的空间大头）
-    gen_green, gen_yellow = generic_disk_scan(rules)
-    green += gen_green
-    yellow += gen_yellow
+    # sweep_roots：频道之外的顶层散落物（下载/未命名/散文件/课程包），不留盘面死角
+    ch_roots = {os.path.realpath(expand(c["root"])) for c in channels}
+    uncat_kb_min = rules.get("uncat_min_mb", 300) * 1024
+    for sr in cfg.get("sweep_roots", []):
+        sroot = expand(sr)
+        if not os.path.isdir(sroot):
+            continue
+        log("[sweep] %s" % sroot)
+        try:
+            entries = sorted(os.listdir(sroot))
+        except PermissionError:
+            continue
+        for name in entries:
+            sp = os.path.join(sroot, name)
+            if name.startswith(".") or os.path.islink(sp):
+                continue
+            if os.path.realpath(sp) in ch_roots:
+                continue  # 频道目录已扫，不重复记账
+            if name in ("System Volume Information",):
+                continue
+            kb = du_kb(sp)
+            accounted_kb += kb
+            if kb < uncat_kb_min:
+                continue
+            yellow.append({"name": "盘面散落 / %s" % name, "path": sp,
+                "size": human(kb), "bucket": "uncat",
+                "content_profile": "频道目录之外的顶层%s" % ("目录" if os.path.isdir(sp) else "文件"),
+                "why_manual": "不属于任何频道项目，占着 %s。打开确认是什么再决定。" % human(kb),
+                "disposal": "在访达打开确认 → 没用移废纸篓；有用就归位到对应频道目录。",
+                "risk": "删前确认不是唯一副本。"})
+
+    # 通用磁盘维度（卡兹克那套真正的空间大头）；扫外置盘等场景可用 skip_generic 跳过本地缓存
+    if not cfg.get("skip_generic"):
+        gen_green, gen_yellow = generic_disk_scan(rules)
+        green += gen_green
+        yellow += gen_yellow
 
     # 安全兜底：任何被保护路径若不慎出现在某个 trash_paths，剔除该 green 项
     safe_green = []
@@ -427,6 +473,7 @@ def main():
         "bulk": ("🎬", "内容中间产物", "已出成片项目的 clips/图，可再生"),
         "big": ("📦", "下载/大文件", "占空间的一次性文件，你定"),
         "app": ("📥", "大应用", "确认不用可正规卸载"),
+        "uncat": ("❓", "未归类大块", "规则不认识但确实占空间，打开看一眼再定"),
     }
     bucket_gb = {}
     for g in green:
@@ -449,9 +496,11 @@ def main():
         g.pop("size_kb", None)
 
     trees = int((g_gb + y_gb) / 5)  # 每回收 5GB ≈ 种一棵树
+    accounted_gb = gb(accounted_kb)
     summary = {
-        "overview": "全盘扫出可回收约 %.1f GB（绿灯闭眼可清）+ 需你判断约 %.1f GB。删不删你定，我只负责扫全、分级、一键可逆处置。"
-                    % (g_gb, y_gb),
+        "overview": "共盘点约 %.0f GB。可回收约 %.1f GB（绿灯闭眼可清）+ 需你判断约 %.1f GB（含❓未归类大块）。删不删你定，我只负责扫全、分级、一键可逆处置。"
+                    % (accounted_gb, g_gb, y_gb),
+        "accounted_gb": round(accounted_gb, 1),
         "reclaim_gb": round(g_gb, 1), "review_gb": round(y_gb, 1),
         "trees": trees, "total_projects": total_projects,
         "buckets": buckets,
@@ -483,8 +532,8 @@ def main():
         "_protected_count": len(protected),
     }
     print(json.dumps(data, ensure_ascii=False, indent=2))
-    log("完成：绿 %d 项/约%.1fGB · 黄 %d 项 · 红(保护) %d 项 · 受保护路径 %d 条 · 耗时 %.1fs"
-        % (len(green), g_gb, len(yellow), len(red), len(protected), data["scan_seconds"]))
+    log("完成：盘点%.0fGB · 绿 %d 项/约%.1fGB · 黄 %d 项/约%.1fGB · 红(保护) %d 项 · 耗时 %.1fs"
+        % (accounted_gb, len(green), g_gb, len(yellow), y_gb, len(red), data["scan_seconds"]))
 
 
 if __name__ == "__main__":

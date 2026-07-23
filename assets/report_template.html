@@ -166,6 +166,7 @@
     <div class="hero-stats">
       <div class="hs"><div class="k">闭眼可清(绿)</div><div class="v green" id="sGreen">–</div></div>
       <div class="hs"><div class="k">需你判断</div><div class="v amber" id="sReview">–</div></div>
+      <div class="hs"><div class="k">共盘点</div><div class="v" id="sAcct">–</div></div>
       <div class="hs"><div class="k">扫到项目</div><div class="v" id="sProj">–</div></div>
       <div class="hs"><div class="k">已保护成片</div><div class="v" id="sProt">–</div></div>
     </div>
@@ -212,6 +213,7 @@ function paintHero(){
     `净化进度 ${done.toFixed(0)}%　（本次已回收 ${recycledGB.toFixed(1)} GB / 可回收共 ${totalReclaimable.toFixed(1)} GB）`;
   document.getElementById('sGreen').textContent = (S.tier_stats&&S.tier_stats.green)||'–';
   document.getElementById('sReview').textContent = (S.tier_stats&&S.tier_stats.yellow)||'–';
+  document.getElementById('sAcct').textContent = S.accounted_gb?('约 '+S.accounted_gb+' GB'):'–';
   document.getElementById('sProj').textContent = S.total_projects||'–';
   document.getElementById('sProt').textContent = DATA._protected_count||(DATA.red?DATA.red.length:0);
   const sys=DATA.system||{};
@@ -331,7 +333,7 @@ function itemsOfBucket(key){
 function renderItem(it, kind){
   // kind: 'recycle'(绿·可删) | 'merge'(重复旧版) | 'review'(黄·仅打开)
   const size = it.size_estimate||it.size||'';
-  const emoji = {cache:'💾',junk:'🗑',dup:'🔁',bulk:'🎬',big:'📦',app:'📥'}[it.bucket]||'📄';
+  const emoji = {cache:'💾',junk:'🗑',dup:'🔁',bulk:'🎬',big:'📦',app:'📥',uncat:'❓'}[it.bucket]||'📄';
   let btns='';
   if(DELETE){
     if(kind==='recycle'){
