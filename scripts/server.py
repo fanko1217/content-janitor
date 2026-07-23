@@ -129,10 +129,35 @@ def _trash_windows(path):
 
 
 def hard_delete(path):
+    # exFAT/外置盘容错：删主文件时系统会连带删掉 ._AppleDouble 伴生文件，
+    # rmtree 再删它会撞 FileNotFoundError；忽略"已不存在"，其余错误照常抛出。
+    def _onerr(func, p, exc_info):
+        err = exc_info[1] if isinstance(exc_info, tuple) else exc_info
+        if not isinstance(err, FileNotFoundError):
+            raise err
     if os.path.isdir(path) and not os.path.islink(path):
-        shutil.rmtree(path)
+        try:
+            shutil.rmtree(path, onerror=_onerr)
+        except TypeError:  # Python 3.12+ 用 onexc
+            shutil.rmtree(path, onexc=lambda f, p, e: None if isinstance(e, FileNotFoundError) else (_ for _ in ()).throw(e))
+        # 收尾：若目录因 ._ 残留还在，再扫一遍强删
+        if os.path.exists(path):
+            for root, dirs, files in os.walk(path, topdown=False):
+                for n in files + dirs:
+                    fp = os.path.join(root, n)
+                    try:
+                        os.remove(fp) if not os.path.isdir(fp) else os.rmdir(fp)
+                    except (FileNotFoundError, OSError):
+                        pass
+            try:
+                os.rmdir(path)
+            except (FileNotFoundError, OSError):
+                pass
     else:
-        os.remove(path)
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
 
 
 def open_in_file_manager(path):
