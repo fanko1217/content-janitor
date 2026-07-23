@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内容回收厂 · 磁盘净化</title>
+<style>
+  :root{
+    --bg:#F5EFE3; --bg2:#EFE7D6; --card:#FFFDF8; --ink:#3A3229; --sub:#9A8F7C;
+    --line:#E7DEC9; --leaf:#5B9A6B; --leaf-d:#3F7A50; --amber:#E8894A; --amber-bg:#FBEBDC;
+    --leaf-bg:#E6F1E5; --sky:#6FA8B5; --clay:#C6663B; --gold:#D9A441;
+    --radius:20px; --shadow:0 2px 6px rgba(120,90,40,.06),0 14px 36px rgba(120,90,40,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","SF Pro SC",system-ui,sans-serif;
+    background:radial-gradient(1200px 500px at 50% -120px,#FBF6EB,var(--bg));
+    color:var(--ink);line-height:1.6;padding:28px 18px 90px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto}
+
+  /* ---------- HERO：回收厂大屏 ---------- */
+  .hero{background:linear-gradient(180deg,#CDEBF2 0%,#DDEEE4 40%,#E9F2D9 68%,#DCEBC2 100%);
+    border-radius:26px;box-shadow:var(--shadow);padding:28px 30px 210px;position:relative;overflow:hidden;
+    margin-bottom:22px;border:1px solid #D6E6C9;min-height:340px}
+  .hero>*{position:relative;z-index:2}
+  .scene{position:absolute;left:0;right:0;bottom:0;height:230px;z-index:1;pointer-events:none;overflow:hidden;
+    border-bottom-left-radius:26px;border-bottom-right-radius:26px}
+  .scene .hills{position:absolute;inset:0;width:100%;height:100%}
+  .btree{display:inline-block;line-height:0}
+  /* 中央大树 */
+  .bigtree{position:absolute;right:9%;bottom:8px;transform-origin:bottom center;z-index:1;
+    transition:transform .7s cubic-bezier(.2,1.2,.3,1);filter:drop-shadow(0 6px 10px rgba(80,120,70,.18))}
+  .bigtree.pop{animation:treepop .7s cubic-bezier(.2,1.4,.3,1)}
+  @keyframes treepop{0%{transform:scale(.9)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
+  .ring{position:absolute;right:9%;bottom:8px;z-index:1;pointer-events:none}
+  /* 能量球 */
+  #orbs{position:absolute;left:0;right:0;bottom:0;height:230px;z-index:3;pointer-events:none}
+  .orb{position:absolute;width:44px;height:44px;border-radius:50%;pointer-events:auto;cursor:pointer;
+    background:radial-gradient(circle at 34% 30%,#EAFFE6,#8FE38C 42%,#5DBE63 100%);
+    box-shadow:0 0 16px rgba(120,225,120,.75),inset 0 -4px 8px rgba(60,150,70,.4);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#2C6E33;
+    animation:bob 3.2s ease-in-out infinite;transition:transform .2s}
+  .orb:hover{transform:scale(1.14)}
+  .orb::after{content:"";position:absolute;top:8px;left:11px;width:11px;height:8px;border-radius:50%;
+    background:rgba(255,255,255,.7);filter:blur(1px)}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .orb-fly{position:fixed;z-index:60;width:40px;height:40px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle at 34% 30%,#EAFFE6,#8FE38C 42%,#5DBE63 100%);
+    box-shadow:0 0 20px rgba(120,225,120,.9);transition:all .85s cubic-bezier(.5,0,.3,1)}
+  .particle{position:fixed;z-index:61;width:9px;height:9px;border-radius:50%;background:#7BD07E;pointer-events:none;
+    box-shadow:0 0 8px rgba(120,220,120,.9)}
+  .leaf{position:absolute;top:-14px;font-size:15px;opacity:.75;z-index:2;pointer-events:none;
+    animation:fall linear infinite}
+  .sun{position:absolute;right:44px;top:14px;width:56px;height:56px;border-radius:50%;
+    background:radial-gradient(circle,#FBE9C2,#F7D89A 60%,rgba(247,216,154,0));opacity:.8;z-index:1}
+  .leaf{position:absolute;top:-14px;font-size:15px;opacity:.75;z-index:2;pointer-events:none;
+    animation:fall linear infinite}
+  @keyframes fall{0%{transform:translateY(-10px) rotate(0);opacity:0}
+    10%{opacity:.8}90%{opacity:.7}100%{transform:translateY(150px) translateX(30px) rotate(220deg);opacity:0}}
+  @keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg)}}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;color:var(--leaf-d);letter-spacing:.3px}
+  .brand .tag{font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-bg);
+    padding:3px 9px;border-radius:20px}
+  .hero-big{margin:14px 0 2px;font-size:15px;color:var(--sub)}
+  .hero-num{font-size:52px;font-weight:900;line-height:1.05;letter-spacing:-1px;
+    font-variant-numeric:tabular-nums;background:linear-gradient(90deg,var(--leaf-d),var(--amber));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero-num small{font-size:22px;font-weight:800;-webkit-text-fill-color:var(--sub)}
+  .trees{margin:8px 0 4px;font-size:15px;color:var(--leaf-d);font-weight:600;min-height:24px}
+  .prog{height:16px;border-radius:10px;background:#E7DEC9;overflow:hidden;margin:14px 0 6px;position:relative}
+  .prog i{display:block;height:100%;width:0;border-radius:10px;
+    background:linear-gradient(90deg,var(--leaf),#7BB98A);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+  .prog-label{font-size:12px;color:var(--sub)}
+  .hero-stats{display:flex;gap:26px;margin-top:16px;flex-wrap:wrap}
+  .hs .k{font-size:12px;color:var(--sub)} .hs .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+  .hs .v.green{color:var(--leaf-d)} .hs .v.amber{color:var(--clay)}
+  .disk-note{margin-top:14px;font-size:12.5px;color:var(--sub);border-top:1px dashed var(--line);padding-top:12px}
+
+  /* ---------- 回收台（bucket 分区）---------- */
+  .station{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    margin-bottom:16px;overflow:hidden;border:1px solid #F0E7D4}
+  .st-head{display:flex;align-items:center;gap:14px;padding:18px 20px;cursor:pointer;user-select:none}
+  .st-head:hover{background:#FBF7EE}
+  .st-icon{font-size:26px;width:34px;text-align:center}
+  .st-title{font-weight:800;font-size:17px}
+  .st-hint{font-size:12.5px;color:var(--sub);margin-top:2px}
+  .st-right{margin-left:auto;text-align:right;white-space:nowrap}
+  .st-gb{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--clay)}
+  .st-cnt{font-size:12px;color:var(--sub)}
+  .st-chev{color:var(--sub);font-size:13px;transition:transform .2s;margin-left:6px}
+  .station.open .st-chev{transform:rotate(90deg)}
+  .st-body{display:none;padding:0 16px 12px}
+  .station.open .st-body{display:block}
+  .st-bar{display:flex;gap:8px;padding:0 20px 16px;flex-wrap:wrap}
+
+  /* item */
+  .it{display:flex;align-items:center;gap:14px;padding:13px 14px;border-radius:14px;
+    border:1px solid var(--line);margin:8px 0;background:#FFFEFB;transition:.35s}
+  .it .em{font-size:20px;width:26px;text-align:center;flex-shrink:0}
+  .it-main{flex:1;min-width:0}
+  .it-name{font-weight:600;font-size:14px;word-break:break-all}
+  .it-note{font-size:12px;color:var(--sub);margin-top:2px}
+  .it-size{font-weight:800;font-variant-numeric:tabular-nums;color:var(--clay);white-space:nowrap;font-size:15px}
+  .it-btns{display:flex;gap:8px;flex-shrink:0}
+  .btn{border:none;border-radius:11px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer;
+    font-family:inherit;transition:.15s}
+  .btn.recycle{background:var(--leaf);color:#fff} .btn.recycle:hover{background:var(--leaf-d)}
+  .btn.merge{background:var(--gold);color:#fff} .btn.merge:hover{filter:brightness(.94)}
+  .btn.hard{background:#F1E9DA;color:var(--clay)} .btn.hard:hover{background:#EADFC9}
+  .btn.open{background:#EDE4D2;color:var(--ink)} .btn.open:hover{background:#E3D8C1}
+  .btn:disabled{opacity:.45;cursor:default}
+  .it.done{background:var(--leaf-bg);border-color:#C9E4CC}
+  .it.done .it-name{text-decoration:line-through;color:var(--sub);font-weight:500}
+  .it.gone{opacity:0;transform:translateX(40px) scale(.9);height:0;padding:0;margin:0;border:0}
+  .it-badge{font-size:11px;font-weight:800;color:var(--leaf-d);background:var(--leaf-bg);
+    padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .st-actions{display:flex;align-items:center;gap:10px}
+  .st-actions .btn{padding:6px 13px;font-size:12px}
+  .st-status{font-size:12.5px;color:var(--leaf-d);font-weight:600}
+  .st-status.err{color:var(--clay)}
+
+  /* 保护区 */
+  .vault{background:linear-gradient(135deg,#F1ECE0,#EDE6D6);border-radius:var(--radius);
+    border:1px dashed #D8CDB4;padding:4px 0;margin-bottom:16px}
+  .vault .st-icon{filter:grayscale(.2)}
+  .vault .it{background:#FBF8F1;opacity:.9}
+  .vault .it-size{color:var(--sub)}
+
+  .path{font-family:"SF Mono",ui-monospace,monospace;font-size:11px;color:var(--sub);word-break:break-all}
+  .empty{padding:24px;text-align:center;color:var(--sub);font-size:14px}
+  .readonly-tip{background:var(--amber-bg);border:1px solid #F1D9BE;border-radius:14px;
+    padding:12px 16px;font-size:13px;color:#96603A;margin-bottom:16px}
+  footer{text-align:center;color:var(--sub);font-size:12px;margin-top:34px;line-height:1.8}
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+    background:var(--leaf-d);color:#fff;padding:12px 22px;border-radius:30px;font-weight:700;
+    font-size:14px;box-shadow:0 8px 24px rgba(63,122,80,.35);opacity:0;transition:.4s;pointer-events:none;z-index:9}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .audio-toggle{position:fixed;right:22px;top:22px;z-index:20;background:var(--card);
+    border:1px solid var(--line);border-radius:30px;padding:9px 16px;font-size:13px;font-weight:700;
+    color:var(--leaf-d);cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px;
+    font-family:inherit;transition:.2s;user-select:none}
+  .audio-toggle:hover{background:#FBF7EE}
+  .audio-toggle .wave{display:inline-flex;gap:2px;align-items:flex-end;height:14px}
+  .audio-toggle .wave i{width:3px;background:var(--leaf);border-radius:2px;height:5px}
+  .audio-toggle.on .wave i{animation:eq .9s ease-in-out infinite}
+  .audio-toggle.on .wave i:nth-child(2){animation-delay:.15s}
+  .audio-toggle.on .wave i:nth-child(3){animation-delay:.3s}
+  .audio-toggle.on .wave i:nth-child(4){animation-delay:.45s}
+  @keyframes eq{0%,100%{height:4px}50%{height:14px}}
+</style>
+</head>
+<body>
+<div class="audio-toggle" id="audioToggle" onclick="toggleAmbient()">
+  <span class="wave"><i></i><i></i><i></i><i></i></span><span id="audioLabel">开启疗愈音</span>
+</div>
+<div class="wrap">
+  <div class="hero">
+    <div class="sun"></div>
+    <div class="scene" id="scene"></div>
+    <div id="orbs"></div>
+    <div class="brand">♻ 内容回收厂 <span class="tag">fanko-content-janitor</span></div>
+    <div class="hero-big">这台电脑可以回收</div>
+    <div><span class="hero-num" id="reclaimNum">0</span><span class="hero-num"><small> GB</small></span></div>
+    <div class="trees" id="trees">🌱 …</div>
+    <div class="prog"><i id="prog"></i></div>
+    <div class="prog-label" id="progLabel"></div>
+    <div class="hero-stats">
+      <div class="hs"><div class="k">闭眼可清(绿)</div><div class="v green" id="sGreen">–</div></div>
+      <div class="hs"><div class="k">需你判断</div><div class="v amber" id="sReview">–</div></div>
+      <div class="hs"><div class="k">扫到项目</div><div class="v" id="sProj">–</div></div>
+      <div class="hs"><div class="k">已保护成片</div><div class="v" id="sProt">–</div></div>
+    </div>
+    <div class="disk-note" id="diskNote"></div>
+  </div>
+
+  <div id="tip"></div>
+  <div id="app"></div>
+
+  <footer>
+    fanko-content-janitor · 只读扫描，删不删你定 · 成片/定稿硬保护永不删<br>
+    默认「投进回收站」= 移废纸篓，可逆；清空废纸篓才真正释放空间
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = __REPORT_DATA__;
+const DELETE = __DELETE_CONFIG__;   // null=静态只读；{token,endpoint}=可一键回收
+const FM = '访达';
+
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const b64 = o => btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+const unb64 = s => JSON.parse(decodeURIComponent(escape(atob(s))));
+function parseGB(str){const m=String(str||'').match(/([\d.]+)\s*(TB|GB|MB|KB)?/i);if(!m)return 0;
+  let v=parseFloat(m[1]);const u=(m[2]||'GB').toUpperCase();
+  if(u==='TB')v*=1024;else if(u==='MB')v/=1024;else if(u==='KB')v/=1048576;return v;}
+
+const S = DATA.summary||{};
+let reclaimLeft = S.reclaim_gb||0;
+const totalReclaimable = (S.reclaim_gb||0)+(S.review_gb||0);
+
+// ---------- HERO ----------
+function paintHero(){
+  document.getElementById('reclaimNum').textContent = reclaimLeft.toFixed(1);
+  const trees = Math.max(0, Math.floor(((S.reclaim_gb||0)-reclaimLeft+ (S._recycled||0))/5));
+  const potential = Math.floor(totalReclaimable/5);
+  document.getElementById('trees').innerHTML =
+    `🌳 清完这些 ≈ 给硬盘种下 <b>${potential}</b> 棵树的空间` +
+    (recycledGB>0?`　·　已回收 <b>${recycledGB.toFixed(1)} GB</b> 🌱×${Math.floor(recycledGB/5)}`:'');
+  const done = totalReclaimable>0 ? (recycledGB/totalReclaimable*100):0;
+  document.getElementById('prog').style.width = Math.min(100,done).toFixed(1)+'%';
+  document.getElementById('progLabel').textContent =
+    `净化进度 ${done.toFixed(0)}%　（本次已回收 ${recycledGB.toFixed(1)} GB / 可回收共 ${totalReclaimable.toFixed(1)} GB）`;
+  document.getElementById('sGreen').textContent = (S.tier_stats&&S.tier_stats.green)||'–';
+  document.getElementById('sReview').textContent = (S.tier_stats&&S.tier_stats.yellow)||'–';
+  document.getElementById('sProj').textContent = S.total_projects||'–';
+  document.getElementById('sProt').textContent = DATA._protected_count||(DATA.red?DATA.red.length:0);
+  const sys=DATA.system||{};
+  document.getElementById('diskNote').textContent =
+    `💽 系统盘 ${esc(sys.disk_name||'')} ${esc(sys.disk_used||'')} / ${esc(sys.disk_total||'')} 已用　·　剩余 ${esc(sys.disk_free||'')}　·　扫描 ${DATA.scan_seconds||'?'}s`;
+  paintScene();
+}
+let recycledGB = 0;
+
+// ---------- 会生长的森林（纯 SVG，回收越多树越绿）----------
+function treeSVG(lit, w){
+  const c = lit?['#4E8C5E','#37704A','#6FB07E']:['#CDD9C0','#C0CFB2','#D8E2CC'];
+  const tr= lit?'#8A6A44':'#C7BBA3';
+  return `<svg width="${w}" height="${(w*1.2).toFixed(0)}" viewBox="0 0 48 58">
+    <rect x="21" y="34" width="6" height="20" rx="3" fill="${tr}"/>
+    <circle cx="24" cy="20" r="15" fill="${c[0]}"/>
+    <circle cx="13" cy="28" r="11" fill="${c[1]}"/>
+    <circle cx="35" cy="28" r="11" fill="${c[2]}"/>
+    <circle cx="24" cy="32" r="12" fill="${c[1]}"/></svg>`;
+}
+// 蚂蚁森林式：中央一棵会长大的大树 + 悬浮能量球（点击收集→飞入→树成长+粒子）
+function treeStage(){ const g=(recycledGB||0); return g<0.5?0:g<8?1:g<25?2:g<55?3:4; }
+function bigTreeSVG(stage){
+  // 用系统 emoji 真树（专业彩色插画，放大后精致立体），按成长阶段换 emoji + 尺寸
+  const em=['🌱','🌿','🌳','🌳','🌳'][stage];
+  const size=[58,90,138,176,200][stage];
+  let bloom='';
+  if(stage>=4){ // 开花：树冠上点缀几朵樱花
+    const spots=[[-0.22,0.12],[0.18,0.08],[-0.05,0.02],[0.30,0.22],[-0.32,0.26]];
+    bloom=spots.map(([dx,dy])=>`<span style="position:absolute;left:${(50+dx*46).toFixed(0)}%;top:${(6+dy*70).toFixed(0)}%;font-size:${(size*0.26).toFixed(0)}px">🌸</span>`).join('');
+  }
+  return `<div style="position:relative;font-size:${size}px;line-height:1;filter:drop-shadow(0 10px 12px rgba(70,110,60,.30))">${em}${bloom}</div>`;
+}
+let prevStage=-1;
+function paintScene(){
+  const sc=document.getElementById('scene'); if(!sc) return;
+  const stage=treeStage();
+  const hills=`<svg class="hills" viewBox="0 0 1000 230" preserveAspectRatio="none">
+    <path d="M0 150 Q250 96 520 138 T1000 120 V230 H0Z" fill="#CFE3B8"/>
+    <path d="M0 176 Q300 132 640 166 T1000 158 V230 H0Z" fill="#BBD79A"/>
+    <rect x="0" y="198" width="1000" height="32" fill="#A9CC86"/>
+    <ellipse cx="300" cy="92" rx="150" ry="14" fill="#fff" opacity=".4"/>
+    <ellipse cx="720" cy="80" rx="130" ry="12" fill="#fff" opacity=".33"/></svg>`;
+  let back=''; const bn=15;
+  for(let i=0;i<bn;i++){ const l=(i+0.3)/bn*100; const em=i%3===0?'🌲':'🌳'; const sz=18+(i%3)*4;
+    back+=`<span class="btree" style="position:absolute;left:${l.toFixed(1)}%;bottom:76px;transform:translateX(-50%);font-size:${sz}px;opacity:.5;filter:drop-shadow(0 2px 2px rgba(80,110,70,.18))">${em}</span>`;}
+  let leaves='';
+  ['🍃','🍂','🌿'].forEach((e,i)=>{ leaves+=`<span class="leaf" style="left:${18+i*26}%;animation-duration:${9+i*3}s;animation-delay:${i*2.5}s">${e}</span>`;});
+  const pop=(stage>prevStage && prevStage>=0)?' pop':'';
+  const tree=`<div class="bigtree${pop}" id="bigtree">${bigTreeSVG(stage)}</div>`;
+  sc.innerHTML = hills+back+tree+leaves;
+  prevStage=stage;
+  renderOrbs();
+}
+
+// ---------- 能量球 ----------
+const collected=new Set();
+const orbKey=it=>((it.trash_paths&&it.trash_paths[0])||it.path);
+function renderOrbs(){
+  const layer=document.getElementById('orbs'); if(!layer) return;
+  if(!DELETE){ layer.innerHTML=''; return; }
+  const avail=(DATA.green||[]).filter(it=>!collected.has(orbKey(it)))
+    .sort((a,b)=>parseGB(b.size_estimate)-parseGB(a.size_estimate)).slice(0,5);
+  const pos=[[5,158],[15,112],[25,170],[12,64],[27,100]];
+  layer.innerHTML=avail.map((it,i)=>{
+    const [r,b]=pos[i%pos.length], g=parseGB(it.size_estimate);
+    const lbl=g>=1?g.toFixed(1)+'G':Math.round(g*1024)+'M';
+    return `<div class="orb" style="right:${r}%;bottom:${b}px;animation-delay:${(i*0.4).toFixed(1)}s"
+      data-key="${esc(orbKey(it))}" data-gb="${g}" data-p="${b64(it.trash_paths||[it.path])}"
+      data-name="${esc(it.name)}" onclick="collectOrb(this)" title="${esc(it.name)}">${lbl}</div>`;
+  }).join('');
+}
+function collectOrb(el){
+  const paths=unb64(el.dataset.p), gb=parseFloat(el.dataset.gb), key=el.dataset.key, name=el.dataset.name;
+  if(!confirm(`收集这颗能量球 🌱\n回收「${name}」约 ${gb.toFixed(2)} GB → 移废纸篓（可逆）？`)) return;
+  el.style.pointerEvents='none';
+  postAction(paths,'trash').then(r=>{
+    if(!r.ok){ el.style.pointerEvents='auto'; toast('✗ '+(r.error||'失败')); return; }
+    collected.add(key); flyOrb(el); try{sfxRecycle();}catch(e){}
+    recycledGB+=gb; reclaimLeft=Math.max(0,reclaimLeft-gb);
+    document.querySelectorAll('.it .btn.recycle[data-m="trash"]').forEach(btn=>{
+      try{ if(unb64(btn.dataset.p).some(p=>paths.includes(p))){ const it=btn.closest('.it');
+        it.classList.add('done'); setTimeout(()=>it.classList.add('gone'),420);} }catch(e){}});
+    toast(`♻ 收集 +${gb.toFixed(1)}GB · 树长大了`);
+    setTimeout(paintHero, 520);
+  });
+}
+function flyOrb(el){
+  const r=el.getBoundingClientRect();
+  const target=document.getElementById('trees')||document.getElementById('reclaimNum');
+  const t=target.getBoundingClientRect();
+  const fly=document.createElement('div'); fly.className='orb-fly';
+  fly.style.left=r.left+'px'; fly.style.top=r.top+'px'; document.body.appendChild(fly);
+  el.style.visibility='hidden';
+  requestAnimationFrame(()=>{ fly.style.left=(t.left+30)+'px'; fly.style.top=t.top+'px';
+    fly.style.transform='scale(.35)'; fly.style.opacity='.15'; });
+  setTimeout(()=>{ spawnParticles(t.left+30,t.top+6); fly.remove(); },860);
+}
+function spawnParticles(x,y){
+  for(let i=0;i<10;i++){ const p=document.createElement('div'); p.className='particle';
+    p.style.left=x+'px'; p.style.top=y+'px'; document.body.appendChild(p);
+    const ang=Math.PI*2*i/10+Math.random(), dist=26+Math.random()*34;
+    requestAnimationFrame(()=>{ p.style.transition='all .7s ease-out';
+      p.style.transform=`translate(${(Math.cos(ang)*dist).toFixed(0)}px,${(Math.sin(ang)*dist).toFixed(0)}px) scale(0)`;
+      p.style.opacity='0'; });
+    setTimeout(()=>p.remove(),720);
+  }
+}
+
+// ---------- 组装每个回收台的条目 ----------
+function itemsOfBucket(key){
+  const g=(DATA.green||[]).filter(x=>(x.bucket||'bulk')===key);
+  const y=(DATA.yellow||[]).filter(x=>(x.bucket||'big')===key);
+  return {g,y};
+}
+
+function renderItem(it, kind){
+  // kind: 'recycle'(绿·可删) | 'merge'(重复旧版) | 'review'(黄·仅打开)
+  const size = it.size_estimate||it.size||'';
+  const emoji = {cache:'💾',junk:'🗑',dup:'🔁',bulk:'🎬',big:'📦',app:'📥'}[it.bucket]||'📄';
+  let btns='';
+  if(DELETE){
+    if(kind==='recycle'){
+      const p=b64(it.trash_paths||[it.path]);
+      btns=`<button class="btn recycle" data-p="${p}" data-m="trash" onclick="act(this)">投进回收站</button>
+            <button class="btn hard" data-p="${p}" data-m="rm" onclick="act(this)">直接删</button>`;
+    }else if(kind==='merge'){
+      const p=b64(it.trash_paths||[it.path]);
+      btns=`<button class="btn merge" data-p="${p}" data-m="trash" onclick="act(this)">合并·留最新</button>`;
+    }else{ // review：打开 + 投回收站 + 直接删（每个扫描项都能删，成片保护区除外）
+      const p=b64([it.path]);
+      btns=`<button class="btn open" data-p="${p}" data-m="open" onclick="act(this)">在${FM}打开</button>
+            <button class="btn recycle" data-p="${p}" data-m="trash" onclick="act(this)">投进回收站</button>
+            <button class="btn hard" data-p="${p}" data-m="rm" onclick="act(this)">直接删</button>`;
+    }
+  }
+  return `<div class="it" data-gb="${parseGB(size)}">
+    <span class="em">${emoji}</span>
+    <div class="it-main">
+      <div class="it-name">${esc(it.name)}</div>
+      <div class="it-note">${esc(it.note||it.content_profile||'')}</div>
+      <div class="path">${esc((it.path||'').replace(/^\/Users\/[^/]+/,'~'))}</div>
+    </div>
+    <span class="it-size">${esc(size)}</span>
+    <span class="it-badge" style="display:none"></span>
+    <span class="it-btns">${btns}</span>
+  </div>`;
+}
+
+function renderStation(b){
+  const {g,y}=itemsOfBucket(b.key);
+  const isReviewBucket = (b.key==='big'||b.key==='app');
+  const rows = g.map(it=>renderItem(it, it.bucket==='dup'?'merge':'recycle')).join('')
+             + y.map(it=>renderItem(it,'review')).join('');
+  if(!rows) return '';
+  const cnt=g.length+y.length;
+  // 绿桶给「全部投进回收站」；review 桶不给批量
+  const batch = (DELETE && !isReviewBucket && g.length)
+    ? `<span class="st-actions"><button class="btn recycle" onclick="batchRecycle(this)">全部投进回收站</button><span class="st-status"></span></span>`
+    : '';
+  return `<div class="station" data-key="${b.key}">
+    <div class="st-head" onclick="this.parentNode.classList.toggle('open')">
+      <span class="st-icon">${b.icon}</span>
+      <div><div class="st-title">${esc(b.label)}</div><div class="st-hint">${esc(b.hint)}</div></div>
+      <div class="st-right"><div class="st-gb">${b.gb.toFixed(1)} GB</div><div class="st-cnt">${cnt} 项</div></div>
+      <span class="st-chev">▶</span>
+    </div>
+    ${batch?`<div class="st-bar">${batch}</div>`:''}
+    <div class="st-body">${rows}</div>
+  </div>`;
+}
+
+// ---------- 保护区 ----------
+function renderVault(){
+  const red=DATA.red||[];
+  if(!red.length) return '';
+  const rows=red.slice(0,40).map(it=>`<div class="it">
+    <span class="em">🔒</span>
+    <div class="it-main"><div class="it-name">${esc(it.name)}</div>
+      <div class="it-note">${esc(it.why_keep||'成片/定稿，硬保护')}</div></div>
+    <span class="it-size">${esc(it.size||'')}</span></div>`).join('');
+  const more=red.length>40?`<div class="empty">…另有 ${red.length-40} 项受保护，同样永不删</div>`:'';
+  return `<div class="vault station"><div class="st-head" onclick="this.closest('.station').classList.toggle('open')">
+    <span class="st-icon">🔒</span>
+    <div><div class="st-title">已封存 · 成片/定稿保护区</div>
+      <div class="st-hint">本工具永不删，仅供你核对识别是否正确</div></div>
+    <div class="st-right"><div class="st-gb" style="color:var(--sub)">保护</div>
+      <div class="st-cnt">${red.length} 项</div></div><span class="st-chev">▶</span></div>
+    <div class="st-body">${rows}${more}</div></div>`;
+}
+
+// ---------- 动作 ----------
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+
+function postAction(paths, mode){
+  return fetch(DELETE.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:DELETE.token,paths,mode})}).then(r=>r.json())
+    .catch(e=>({ok:false,error:'连接失败：'+e}));
+}
+
+function markRecycled(itEl){
+  try{ sfxRecycle(); }catch(e){}
+  const gb=parseFloat(itEl.dataset.gb||0);
+  recycledGB+=gb; reclaimLeft=Math.max(0,reclaimLeft-gb);
+  const badge=itEl.querySelector('.it-badge');
+  if(badge){badge.style.display='';badge.textContent='已回收';}
+  itEl.classList.add('done');
+  setTimeout(()=>itEl.classList.add('gone'),450);
+  paintHero();
+}
+
+function act(btn){
+  const paths=unb64(btn.dataset.p), mode=btn.dataset.m;
+  const itEl=btn.closest('.it');
+  if(mode==='open'){ postAction(paths,'open').then(r=>{ toast(r.ok?'已在'+FM+'打开，自己审查删除':'✗ '+(r.error||'失败')); }); return; }
+  const verb = mode==='rm' ? '直接删除（不可恢复）' : '投进回收站（移废纸篓，可逆）';
+  if(!confirm(`确认${verb}？\n\n`+paths.join('\n'))) return;
+  const btns=itEl.querySelectorAll('.btn'); btns.forEach(b=>b.disabled=true);
+  postAction(paths,mode).then(r=>{
+    if(r.ok){ markRecycled(itEl); toast(mode==='rm'?'🗑 已删除':'♻ 已投进回收站 +🌱'); }
+    else { btns.forEach(b=>b.disabled=false); toast('✗ '+(r.error||'失败')); }
+  });
+}
+
+function batchRecycle(btn){
+  const station=btn.closest('.station');
+  const items=[...station.querySelectorAll('.it')].filter(el=>!el.classList.contains('done'));
+  const paths=[]; let gb=0;
+  items.forEach(el=>{const b=el.querySelector('.btn.recycle[data-m="trash"]');
+    if(b){unb64(b.dataset.p).forEach(p=>paths.push(p));gb+=parseFloat(el.dataset.gb||0);}});
+  if(!paths.length){toast('这个台子没有可批量回收的项');return;}
+  const status=btn.parentNode.querySelector('.st-status');
+  if(!confirm(`把这个回收台的 ${items.length} 项全部投进回收站？\n共 ${paths.length} 个路径，约 ${gb.toFixed(1)} GB。可逆。`)) return;
+  btn.disabled=true; status.textContent='回收中…';
+  postAction(paths,'trash').then(r=>{
+    if(r.ok){ items.forEach(el=>{const b=el.querySelector('.btn.recycle[data-m="trash"]');if(b)markRecycled(el);});
+      status.textContent=`♻ 已回收 ${items.length} 项`; toast(`♻ 一台清空！+🌱×${Math.floor(gb/5)}`); }
+    else { btn.disabled=false; status.textContent=''; status.className='st-status err'; toast('✗ '+(r.error||'失败')); }
+  });
+}
+
+// ---------- 疗愈声景（Web Audio 现场合成，无需素材，离线可用）----------
+let AC=null, ambientOn=false, ambNodes=null, dropTimer=null;
+function ensureAC(){ if(!AC){ AC=new (window.AudioContext||window.webkitAudioContext)(); } if(AC.state==='suspended') AC.resume(); return AC; }
+
+// 棕噪声缓冲（比白噪更柔、更像雨/溪流）
+function brownNoiseBuffer(sec){
+  const ac=ensureAC(), n=ac.sampleRate*sec, buf=ac.createBuffer(1,n,ac.sampleRate), d=buf.getChannelData(0);
+  let last=0;
+  for(let i=0;i<n;i++){ const w=(Math.random()*2-1); last=(last+0.02*w)/1.02; d[i]=last*3.2; }
+  return buf;
+}
+function startAmbient(){
+  const ac=ensureAC();
+  const src=ac.createBufferSource(); src.buffer=brownNoiseBuffer(6); src.loop=true;
+  const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=520; lp.Q.value=.6;
+  const g=ac.createGain(); g.gain.value=0.0;
+  // 缓慢"呼吸"：让雨声有起伏，更自然
+  const lfo=ac.createOscillator(), lfoG=ac.createGain();
+  lfo.frequency.value=0.06; lfoG.gain.value=0.02;
+  lfo.connect(lfoG); lfoG.connect(g.gain);
+  src.connect(lp); lp.connect(g); g.connect(ac.destination);
+  src.start(); lfo.start();
+  g.gain.setTargetAtTime(0.075, ac.currentTime, 1.2); // 缓入
+  ambNodes={src,g,lfo,lp};
+  scheduleDrops();
+}
+// 随机柔和"水滴/木铃"点缀，营造真实感
+function softDrop(vol){
+  const ac=ensureAC(), t=ac.currentTime;
+  const o=ac.createOscillator(), g=ac.createGain(), lp=ac.createBiquadFilter();
+  o.type='sine'; const base=520+Math.random()*680; o.frequency.setValueAtTime(base,t);
+  o.frequency.exponentialRampToValueAtTime(base*0.6,t+0.28);
+  lp.type='lowpass'; lp.frequency.value=1800;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime((vol||0.09),t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+  o.connect(lp); lp.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.55);
+}
+function scheduleDrops(){
+  if(!ambientOn) return;
+  softDrop(0.05+Math.random()*0.04);
+  dropTimer=setTimeout(scheduleDrops, 2600+Math.random()*4200);
+}
+function stopAmbient(){
+  if(ambNodes){ const ac=ensureAC();
+    ambNodes.g.gain.setTargetAtTime(0.0001, ac.currentTime, 0.6);
+    setTimeout(()=>{try{ambNodes.src.stop();ambNodes.lfo.stop();}catch(e){}; ambNodes=null;},900); }
+  if(dropTimer){clearTimeout(dropTimer);dropTimer=null;}
+}
+function toggleAmbient(){
+  ambientOn=!ambientOn;
+  const el=document.getElementById('audioToggle'), lb=document.getElementById('audioLabel');
+  if(ambientOn){ el.classList.add('on'); lb.textContent='疗愈音·播放中'; startAmbient(); }
+  else { el.classList.remove('on'); lb.textContent='开启疗愈音'; stopAmbient(); }
+}
+// 回收成功音效：温柔风铃 + 一滴水（哪怕没开背景音也响）
+function sfxRecycle(){
+  const ac=ensureAC(), t=ac.currentTime;
+  [0,4,7].forEach((semi,i)=>{ // 一个柔和的和弦泛音
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.value=523.25*Math.pow(2,semi/12);
+    g.gain.setValueAtTime(0,t+i*0.04); g.gain.linearRampToValueAtTime(0.10,t+i*0.04+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.04+0.9);
+    o.connect(g); g.connect(ac.destination); o.start(t+i*0.04); o.stop(t+i*0.04+1.0);
+  });
+  softDrop(0.12);
+}
+
+// ---------- mount ----------
+(function(){
+  const buckets=(S.buckets||[]).filter(b=>b.gb>0.05);
+  let html = buckets.map(renderStation).join('') + renderVault();
+  if(!html) html='<div class="empty">没扫到可回收的东西，硬盘很干净 🎉</div>';
+  document.getElementById('app').innerHTML = html;
+  // 默认展开体积最大的头两个台子
+  document.querySelectorAll('#app .station').forEach((s,i)=>{ if(i<2) s.classList.add('open'); });
+  if(!DELETE){
+    document.getElementById('tip').innerHTML =
+      '<div class="readonly-tip">📄 这是只读报告，看不到回收按钮。想在网页上一键回收，用 <b>server.py</b> 启动：<br>'+
+      '<span class="path">python3 scripts/server.py /tmp/janitor_analysis.json</span></div>';
+  }
+  paintHero();
+})();
+</script>
+</body>
+</html>
