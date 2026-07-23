@@ -124,6 +124,26 @@ def subtree_has_finished(path, rules):
     return False
 
 
+MEDIA_EXT = {".mp4", ".mov", ".mkv", ".m4v", ".webm", ".avi", ".mts",
+             ".mp3", ".wav", ".m4a", ".aac", ".flac"}
+WORKSPACE_MARKERS = (".git", ".obsidian", "node_modules", "package.json", ".venv", "venv")
+
+
+def is_finished_media(name, is_dir):
+    return (not is_dir) and os.path.splitext(name)[1].lower() in MEDIA_EXT
+
+
+def is_workspace(path):
+    """含 .git/.obsidian/node_modules 等 → 代码/工作目录，不是可删素材，跳过。"""
+    return any(os.path.exists(os.path.join(path, m)) for m in WORKSPACE_MARKERS)
+
+
+def _media_red(label, path, kb):
+    return {"name": label, "path": path, "size": human(kb),
+            "why_keep": "成品文件（视频/音频），频道库内视为你的作品，硬保护。",
+            "indirect_release": "确认已下线/别处有备份，再自行手动处理。"}
+
+
 def _uncat_item(label, path, kb, is_dir):
     return {"name": label, "path": path, "size": human(kb), "bucket": "uncat",
             "content_profile": "未归类%s" % ("目录" if is_dir else "文件"),
@@ -187,6 +207,16 @@ def drill(plabel, path, rules, depth):
             if kb >= min_kb:
                 out["green"].append(_green_item(plabel, name, cpath, kb,
                                     "过程/预览/副本文件，可回收。", bucket="junk"))
+            classified_any = True
+            continue
+        # 散落成品文件（视频/音频）→ 🔴保护；工作区目录 → 跳过（不当素材）
+        if is_finished_media(name, is_dir):
+            kb = du_kb(cpath)
+            out["red"].append(_media_red(label, cpath, kb))
+            out["protected_paths"].append(os.path.realpath(cpath))
+            classified_any = True
+            continue
+        if is_dir and is_workspace(cpath):
             classified_any = True
             continue
         # 仍未归类 → 大块继续往下钻，钻不动才落 uncat
@@ -282,9 +312,16 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
                               "过程/预览/副本文件，可回收。", bucket="junk"))
             continue
 
+        # 散落成品文件（视频/音频）→ 🔴保护；工作区目录 → 跳过（不当素材）
+        label = "%s / %s" % (pname, name)
+        if is_finished_media(name, is_dir):
+            R["red"].append(_media_red(label, cpath, kb))
+            R["protected_paths"].append(os.path.realpath(cpath))
+            continue
+        if is_dir and is_workspace(cpath):
+            continue
         # ❓ 规则不认识的大块 → 先递归钻进去拆成片/中间产物，钻不出结果才落未归类台
         if kb >= uncat_kb_min:
-            label = "%s / %s" % (pname, name)
             if is_dir:
                 sub, hit = drill(label, cpath, rules, rules.get("drill_depth", 3))
                 if hit:
@@ -527,6 +564,10 @@ def main():
             accounted_kb += kb
             if kb < uncat_kb_min:
                 continue
+            # 工作区/代码库(第二大脑/仓库) → 跳过，不是可删素材
+            if os.path.isdir(sp) and is_workspace(sp):
+                log("[sweep] 跳过工作区: %s" % name)
+                continue
             yellow.append({"name": "盘面散落 / %s" % name, "path": sp,
                 "size": human(kb), "bucket": "uncat",
                 "content_profile": "频道目录之外的顶层%s" % ("目录" if os.path.isdir(sp) else "文件"),
@@ -592,6 +633,17 @@ def main():
             continue
         safe_green.append(g)
     green = safe_green
+
+    # realpath 去重防御：同一物理路径只保留一项，防重复登记进收集/汇总
+    def _dedup(items):
+        seen, out = set(), []
+        for it in items:
+            rp = os.path.realpath(it.get("path", ""))
+            if rp and rp in seen:
+                continue
+            seen.add(rp); out.append(it)
+        return out
+    green, yellow, red = _dedup(green), _dedup(yellow), _dedup(red)
 
     green.sort(key=lambda x: x.get("size_kb", 0), reverse=True)
     g_gb = sum(gb(x.get("size_kb", 0)) for x in green)
