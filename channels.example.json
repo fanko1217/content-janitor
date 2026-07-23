@@ -1,45 +1,93 @@
 {
-  "_comment": "复制本文件为 channels.json，改成你自己的项目目录。scan.py 读 channels.json 做机械分级；channels.json 已被 .gitignore 忽略，不会误传你的私人路径。finished_globs = 判断一期是否已出成片的规则（成片存在，其中间产物才可删），因项目结构而异，是防误删的关键。",
+  "_comment": "复制本文件为 channels.json，改成你自己的项目目录。scan.py 读 channels.json 做机械分级；channels.json 已被 .gitignore 忽略，不会误传你的私人路径。finished_globs = 判断一期是否已出成片的规则（成片存在，其中间产物才可删），因项目结构而异，是防误删的关键。 新增: uncat_min_mb=未归类大块门槛; drill_depth=递归钻取深度(钻进不认识的工程夹拆成片/中间产物); sweep_roots=频道之外的顶层清扫根(全量记账,不留盘面死角)。",
   "channels": [
     {
       "name": "my-video-projects",
       "root": "~/Desktop/my-video-projects",
       "layout": "projects",
-      "finished_globs": ["output/final*.mp4", "*final*.mp4"],
+      "finished_globs": [
+        "output/final*.mp4",
+        "*final*.mp4"
+      ],
       "ext_folder": "my-archive"
     },
     {
       "name": "flat-layout-channel",
       "root": "~/Desktop/another-channel",
       "layout": "flat",
-      "finished_globs": ["*final*.mp4", "output/*.mp4", "preview_*.mp4"],
+      "finished_globs": [
+        "*final*.mp4",
+        "output/*.mp4",
+        "preview_*.mp4"
+      ],
       "ext_folder": "archive-2",
-      "flat_skip": ["scripts", "clips", "audio", "output"]
+      "flat_skip": [
+        "scripts",
+        "clips",
+        "audio",
+        "output"
+      ]
     }
   ],
   "rules": {
     "intermediate_dirs": [
-      "clips", "images", "opening_clips_veo", "veo_clips", "opening_clips",
-      "render_segments_*", "_tmp_render", "tmp_segments", "tmp", "archive_failed_renders",
-      "videos", "lastframes", "raw", "last_frames"
+      "clips",
+      "images",
+      "opening_clips_veo",
+      "veo_clips",
+      "opening_clips",
+      "render_segments_*",
+      "_tmp_render",
+      "tmp_segments",
+      "tmp",
+      "archive_failed_renders",
+      "videos",
+      "lastframes",
+      "raw",
+      "last_frames"
     ],
-    "intermediate_subpaths": ["audio/tts"],
+    "intermediate_subpaths": [
+      "audio/tts"
+    ],
     "intermediate_file_globs": [
-      "*_preview.mp4", "preview_*.mp4", "review_*.mp4",
-      "generation_log_batch*.json", "clip_queue_*batch*.json",
-      "temp-audio-*.m4a", "*_rest.mp4", "*_rest_ffmpeg.mp4"
+      "*_preview.mp4",
+      "preview_*.mp4",
+      "review_*.mp4",
+      "generation_log_batch*.json",
+      "clip_queue_*batch*.json",
+      "temp-audio-*.m4a",
+      "*_rest.mp4",
+      "*_rest_ffmpeg.mp4"
     ],
     "protected_dirs": [
-      "script", "data", "prompts", "stage0", "chapter_covers_v3",
+      "script",
+      "data",
+      "prompts",
+      "stage0",
+      "chapter_covers_v3",
       "delivery_assets"
     ],
     "protected_file_globs": [
-      "*final*.mp4", "*_config.json", "project.json", "compose_manifest.json"
+      "*final*.mp4",
+      "*_config.json",
+      "project.json",
+      "compose_manifest.json"
     ],
-    "junk_names": ["old_do_not_use*", "*_old", "*_backup"],
+    "junk_names": [
+      "old_do_not_use*",
+      "*_old",
+      "*_backup"
+    ],
     "timestamp_regex": "_[0-9]{8}_[0-9]{6}$",
     "dup_suffix_regex": "(_v[0-9]+|_official|_copy)(_[0-9]{8}_[0-9]{6})?$",
     "min_report_mb": 30,
-    "generic_min_mb": 200
-  }
+    "generic_min_mb": 200,
+    "uncat_min_mb": 400,
+    "drill_depth": 3
+  },
+  "sweep_roots": [
+    "~/Desktop",
+    "~/Movies",
+    "~/Documents"
+  ]
 }

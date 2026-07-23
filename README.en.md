@@ -23,6 +23,7 @@ An open-source **Agent Skill / standalone script** that read-only scans your who
 
 - **🎮 Cleanup = growing a tree** — reclaimable items become glowing **energy orbs**; tap to collect → orb flies in → particles burst → the central tree grows (🌱→🌿→🌳→blossom).
 - **🔍 Finds the real space hogs** — dev caches (`~/.cache`, pip/npm/Xcode, often tens of GB), browser caches, big downloads, big apps — not just a few hundred MB of system cache.
+- **🧾 Full accounting, zero blind spots** — every byte is accounted for: unknown big folders get **recursively drilled** (`drill_depth`) to split finals from intermediates, the rest lands in a "❓ uncategorized" station; the report's "total audited X GB" reconciles against disk usage (99% coverage in practice).
 - **🎬 A creator dimension no one else has** — intermediate files from video/editing projects (clips, image sequences, render temp), duplicate old versions, failed renders. Built for content creators and developers.
 - **🔒 Safety first, you decide** — **read-only** scanning; important files (final videos, master docs) are **hard-protected, never deleted**; local server + path allowlist + random token + `127.0.0.1` only; **no network, no upload, no telemetry**. "Move to Trash" (reversible) is the default.
 - **🎵 Healing ambient audio** — Web Audio generated soft rain + wind-chime (toggleable).

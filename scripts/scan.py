@@ -115,13 +115,106 @@ def dup_key(name, rules):
     return k.strip("_ ")
 
 
+def subtree_has_finished(path, rules):
+    """本层或下一层是否存在成片/定稿（protected_file_globs 命中即视为已出片）。"""
+    import glob as _g
+    for pat in rules["protected_file_globs"]:
+        if _g.glob(os.path.join(path, pat)) or _g.glob(os.path.join(path, "*", pat)):
+            return True
+    return False
+
+
+def _uncat_item(label, path, kb, is_dir):
+    return {"name": label, "path": path, "size": human(kb), "bucket": "uncat",
+            "content_profile": "未归类%s" % ("目录" if is_dir else "文件"),
+            "why_manual": "规则不认识它，但它占着 %s。打开看一眼是什么再决定。" % human(kb),
+            "disposal": "在访达打开确认内容 → 没用就移废纸篓。",
+            "risk": "删前务必确认不是唯一副本的成片/素材。"}
+
+
+def drill(plabel, path, rules, depth):
+    """递归钻进未归类工程夹，把成片(保护)与中间产物(可回收)拆开。
+    返回 (out{green,yellow,red,protected_paths}, classified_any)。"""
+    out = {"green": [], "yellow": [], "red": [], "protected_paths": []}
+    fin = subtree_has_finished(path, rules)
+    try:
+        children = sorted(os.listdir(path))
+    except (PermissionError, OSError):
+        return out, False
+    min_kb = rules["min_report_mb"] * 1024
+    uncat_min = rules.get("uncat_min_mb", 300) * 1024
+    classified_any = False
+    for name in children:
+        cpath = os.path.join(path, name)
+        if name.startswith(".") or os.path.islink(cpath):
+            continue
+        is_dir = os.path.isdir(cpath)
+        label = "%s / %s" % (plabel, name)
+        if is_dir and name in rules["protected_dirs"]:
+            classified_any = True
+            continue
+        if (not is_dir) and match_any(name, rules["protected_file_globs"]):
+            out["protected_paths"].append(os.path.realpath(cpath))
+            classified_any = True
+            continue
+        if match_any(name, rules["junk_names"]):
+            kb = du_kb(cpath)
+            if kb >= 1024:
+                out["green"].append(_green_item(plabel, name, cpath, kb,
+                                    "已标记废弃，死重量，可直接回收。", bucket="junk"))
+            classified_any = True
+            continue
+        if is_dir and (name in rules["intermediate_dirs"]
+                       or match_any(name, rules["intermediate_dirs"])):
+            kb = du_kb(cpath)
+            if kb < min_kb:
+                classified_any = True
+                continue
+            if fin:
+                out["green"].append(_green_item(plabel, name, cpath, kb,
+                                    "中间产物；同夹已有成片，删后可重跑再生。", bucket="bulk"))
+            else:
+                out["yellow"].append({"name": label, "path": cpath,
+                    "size": human(kb), "bucket": "bulk",
+                    "content_profile": "中间产物（%s）" % name,
+                    "why_manual": "此夹内未检测到成片，删了可能白跑，需确认。",
+                    "disposal": "确认已出片或已弃 → 移废纸篓。",
+                    "risk": "未出片就删=素材白做。"})
+            classified_any = True
+            continue
+        if (not is_dir) and match_any(name, rules["intermediate_file_globs"]):
+            kb = du_kb(cpath)
+            if kb >= min_kb:
+                out["green"].append(_green_item(plabel, name, cpath, kb,
+                                    "过程/预览/副本文件，可回收。", bucket="junk"))
+            classified_any = True
+            continue
+        # 仍未归类 → 大块继续往下钻，钻不动才落 uncat
+        kb = du_kb(cpath)
+        if kb >= uncat_min:
+            if is_dir and depth > 0:
+                sub, hit = drill(label, cpath, rules, depth - 1)
+                if hit:
+                    for k in ("green", "yellow", "red"):
+                        out[k] += sub[k]
+                    out["protected_paths"] += sub["protected_paths"]
+                    classified_any = True
+                else:
+                    out["yellow"].append(_uncat_item(label, cpath, kb, is_dir))
+            else:
+                out["yellow"].append(_uncat_item(label, cpath, kb, is_dir))
+    return out, classified_any
+
+
 def classify_project(project, ch, rules, dup_role, keep_name=None):
     """对单个项目返回 {green:[], yellow:[], red:[], uncat:[], total_kb}。
     全量记账：du 每个子项，规则不认识的大块进 uncat（❓未归类），不留隐形区。
     dup_role: 'keep' | 'archive' | 'solo'；keep_name=同组保留的最新版名。"""
     R = {"green": [], "yellow": [], "red": [], "protected_paths": [], "total_kb": 0}
     pname = os.path.basename(project)
-    has_finished = glob_hit(project, ch["finished_globs"])
+    # finished_globs 为空(如外置盘归档) → 自动用"夹内是否已有成片"探测
+    has_finished = (glob_hit(project, ch["finished_globs"]) if ch["finished_globs"]
+                    else subtree_has_finished(project, rules))
     R["has_finished"] = has_finished
 
     # 记录受保护的成片/定稿绝对路径（硬保护，永不进 trash_paths）
@@ -189,14 +282,18 @@ def classify_project(project, ch, rules, dup_role, keep_name=None):
                               "过程/预览/副本文件，可回收。", bucket="junk"))
             continue
 
-        # ❓ 规则不认识的大块 → 未归类台（消灭隐形区的关键）
+        # ❓ 规则不认识的大块 → 先递归钻进去拆成片/中间产物，钻不出结果才落未归类台
         if kb >= uncat_kb_min:
-            R["yellow"].append({"name": "%s / %s" % (pname, name), "path": cpath,
-                "size": human(kb), "bucket": "uncat",
-                "content_profile": "未归类%s（%s）" % ("目录" if is_dir else "文件", name),
-                "why_manual": "工具的规则不认识它，但它确实占着 %s。打开看一眼是什么再决定。" % human(kb),
-                "disposal": "在访达打开确认内容 → 没用就移废纸篓。",
-                "risk": "删前务必确认不是唯一副本的成片/素材。"})
+            label = "%s / %s" % (pname, name)
+            if is_dir:
+                sub, hit = drill(label, cpath, rules, rules.get("drill_depth", 3))
+                if hit:
+                    R["green"] += sub["green"]; R["yellow"] += sub["yellow"]
+                    R["red"] += sub["red"]; R["protected_paths"] += sub["protected_paths"]
+                else:
+                    R["yellow"].append(_uncat_item(label, cpath, kb, is_dir))
+            else:
+                R["yellow"].append(_uncat_item(label, cpath, kb, is_dir))
         else:
             misc_kb += kb
     R["misc_kb"] = misc_kb
