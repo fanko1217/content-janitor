@@ -540,6 +540,50 @@ def main():
         green += gen_green
         yellow += gen_yellow
 
+    # 开箱安检：绿灯目录发放前查内部是否藏成片/定稿文件（如 veo_clips/opening_final.mp4），
+    # 命中一律降级🟡。只查内容类 bucket（bulk/junk/dup），系统缓存不查（文件海量且非用户内容）。
+    # 安检模式取"配置保护名 ∪ 宽版兜底"——opening_final.mp4 这类中缀命名也要拦住
+    prot_base = list({os.path.basename(p) for p in rules["protected_file_globs"]}
+                     | {"*final*.mp4", "*成片*.mp4", "*定稿*.*", "*完整合成*.mp4", "*最终版*.mp4"})
+
+    def dir_contains_protected(path, cap=8000):
+        n = 0
+        try:
+            for root, _dirs, files in os.walk(path):
+                for f in files:
+                    n += 1
+                    if n > cap:
+                        return None  # 太大查不完 → 保守视为可疑
+                    if match_any(f, prot_base):
+                        return os.path.join(root, f)
+        except OSError:
+            return None
+        return ""  # 干净
+
+    checked_green = []
+    for g in green:
+        if g.get("bucket") not in ("bulk", "junk", "dup"):
+            checked_green.append(g)
+            continue
+        suspicious = None
+        for tp in g.get("trash_paths", []):
+            if os.path.isdir(tp):
+                hit = dir_contains_protected(tp)
+                if hit != "":
+                    suspicious = hit or "(目录过大未能全查)"
+                    break
+        if suspicious:
+            yellow.append({"name": g["name"], "path": g["path"],
+                "size": g.get("size_estimate", ""), "bucket": g.get("bucket", "bulk"),
+                "content_profile": "中间产物目录，但内部发现疑似成片/定稿：%s" % suspicious,
+                "why_manual": "整夹删除会连带删掉这个疑似成片文件，需你确认它是否重要。",
+                "disposal": "在访达打开确认 → 该文件重要就先挪走，再清整夹。",
+                "risk": "宁可多点一次，不赌成片。"})
+            log("！绿降黄(内藏疑似成片): %s" % g["path"])
+        else:
+            checked_green.append(g)
+    green = checked_green
+
     # 安全兜底：任何被保护路径若不慎出现在某个 trash_paths，剔除该 green 项
     safe_green = []
     for g in green:
