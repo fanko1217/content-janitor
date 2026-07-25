@@ -42,9 +42,16 @@ report-ready 的 analysis JSON。全 5 频道 ~4-5s。
 
 ### Step 3 生成交互报告（默认服务模式，可一键处置）
 ```bash
+python3 scripts/validate_report.py /tmp/janitor_analysis.json  # 三色分级验收，失败就停止
 python3 scripts/server.py /tmp/janitor_analysis.json   # 127.0.0.1+随机端口+随机token，自动开浏览器，Ctrl+C 停
+
+# 公开教程录屏：隐藏个人路径，并使用没有标签栏、地址栏、书签栏的独立窗口
+JANITOR_PUBLIC_OUTPUT=1 python3 scripts/scan.py > /tmp/janitor_analysis.json
+python3 scripts/validate_report.py /tmp/janitor_analysis.json
+python3 scripts/server.py /tmp/janitor_analysis.json --recording-mode
 ```
-🟢 给「移废纸篓 / 直接删」+分组「全部移废纸篓」；🟡 给「在访达打开」（去自己审）；🔴 无按钮（保护，仅供核对）。
+页面首屏和正文必须明确出现：`绿灯·闭眼可删`、`黄灯·需要判断`、`红灯·硬保护`。
+🟢 给「移废纸篓 / 直接删」+分组「全部移废纸篓」；🟡 逐项判断；🔴 无删除按钮（保护，仅供核对）。
 
 仅要只读留存报告时用静态模式（无删除能力）：
 ```bash
@@ -53,6 +60,15 @@ python3 scripts/build_report.py /tmp/janitor_analysis.json ~/Desktop/内容清�
 
 ### Step 4 对话给结论
 报告开后，一段话结论先行：可直接回收多少、最该先清的 2-3 项、需你判断的有哪些。细节看网页。
+
+### Step 5 公开录屏验收
+
+- 首屏必须同时看到三色名称和数字，正文必须有三个独立分区。
+- 公开录屏一律使用 `--recording-mode`；不得录入标签栏、地址栏、书签、桌面图标和私人页面。
+- 路径必须显示为 `~` 或 `/Volumes/外置盘/…/文件名`，不能出现用户名、盘名和完整目录。
+- 删除确认必须使用页面正中弹窗；黄灯逐项判断；红灯只展示保护、绝不操作。
+- 录屏模式下的回收动作会先暂存真实文件，停止服务时必须看到“已还原”结果。
+- 录完抽查关键帧：三色总览、三个正文分区、居中确认框、能量球飞入、树成长。
 
 ## 回收台分类（bucket，scan.py 机械判定 + 前端按体积排序）
 

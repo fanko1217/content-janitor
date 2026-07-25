@@ -24,10 +24,26 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CFG = os.path.join(HERE, "..", "channels.json")
+PUBLIC_OUTPUT = os.environ.get("JANITOR_PUBLIC_OUTPUT") == "1"
 
 
 def log(msg):
     print(msg, file=sys.stderr, flush=True)
+
+
+def visible_path(path):
+    """公开录屏时隐藏用户名、外置盘名和深层目录。"""
+    if not PUBLIC_OUTPUT:
+        return path
+    p = os.path.abspath(os.path.expanduser(path))
+    home = os.path.expanduser("~")
+    if p == home:
+        return "~"
+    if p.startswith(home + os.sep):
+        return "~/…/" + os.path.basename(p.rstrip(os.sep))
+    if p.startswith("/Volumes/"):
+        return "/Volumes/外置盘/…/" + os.path.basename(p.rstrip(os.sep))
+    return os.path.basename(p.rstrip(os.sep)) or p
 
 
 def expand(p):
@@ -510,7 +526,8 @@ def main():
 
     for ci, ch in enumerate(channels, 1):
         projects = list_projects(ch)
-        log("[%d/%d] %s：%d 个项目" % (ci, len(channels), ch["name"], len(projects)))
+        channel_label = "扫描位置 %d" % ci if PUBLIC_OUTPUT else ch["name"]
+        log("[%d/%d] %s：%d 个项目" % (ci, len(channels), channel_label, len(projects)))
         # 频道级判重
         groups = {}
         for p in projects:
@@ -529,7 +546,8 @@ def main():
 
         for pi, project in enumerate(projects, 1):
             total_projects += 1
-            log("    (%d/%d) %s" % (pi, len(projects), os.path.basename(project)))
+            project_label = "创作项目" if PUBLIC_OUTPUT else os.path.basename(project)
+            log("    (%d/%d) %s" % (pi, len(projects), project_label))
             r = classify_project(project, ch, rules, role.get(project, "solo"),
                                  keep_name=keep_of.get(project))
             for g in r["green"]:
@@ -547,7 +565,7 @@ def main():
         sroot = expand(sr)
         if not os.path.isdir(sroot):
             continue
-        log("[sweep] %s" % sroot)
+        log("[sweep] %s" % visible_path(sroot))
         try:
             entries = sorted(os.listdir(sroot))
         except PermissionError:
@@ -566,7 +584,8 @@ def main():
                 continue
             # 工作区/代码库(第二大脑/仓库) → 跳过，不是可删素材
             if os.path.isdir(sp) and is_workspace(sp):
-                log("[sweep] 跳过工作区: %s" % name)
+                label = "工作区" if PUBLIC_OUTPUT else name
+                log("[sweep] 跳过工作区: %s" % label)
                 continue
             yellow.append({"name": "盘面散落 / %s" % name, "path": sp,
                 "size": human(kb), "bucket": "uncat",
@@ -620,7 +639,7 @@ def main():
                 "why_manual": "整夹删除会连带删掉这个疑似成片文件，需你确认它是否重要。",
                 "disposal": "在访达打开确认 → 该文件重要就先挪走，再清整夹。",
                 "risk": "宁可多点一次，不赌成片。"})
-            log("！绿降黄(内藏疑似成片): %s" % g["path"])
+            log("！绿降黄(内藏疑似成片): %s" % visible_path(g["path"]))
         else:
             checked_green.append(g)
     green = checked_green
@@ -629,7 +648,7 @@ def main():
     safe_green = []
     for g in green:
         if any(os.path.realpath(tp) in protected for tp in g.get("trash_paths", [])):
-            log("！跳过疑似受保护项：%s" % g["path"])
+            log("！跳过疑似受保护项：%s" % visible_path(g["path"]))
             continue
         safe_green.append(g)
     green = safe_green

@@ -1,12 +1,16 @@
 # 你的私人频道配置（含真实项目路径）——绝不上传
 channels.json
+channels_full.json
 
 # 扫描/报告产物
 /tmp/janitor_analysis.json
 *_报告.html
 storage-report.html
+*.analysis.json
+*.report.html
 
 # 系统
 .DS_Store
 __pycache__/
-*.pyc
+*.py[cod]
+._*

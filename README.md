@@ -73,13 +73,26 @@ cp channels.example.json channels.json
 # 3. 只读扫描（几秒，进度打在终端）
 python3 scripts/scan.py > /tmp/janitor_analysis.json
 
-# 4. 打开蚂蚁森林报告，网页上一键回收
+# 4. 先验收三色结果，确认绿/黄/红三档都完整出现
+python3 scripts/validate_report.py /tmp/janitor_analysis.json
+
+# 5. 打开蚂蚁森林报告，网页上一键回收
 python3 scripts/server.py /tmp/janitor_analysis.json
 #   → 自动开浏览器；点能量球收集、点回收台按钮处置；用完 Ctrl+C 停
 
 # 或只生成一份只读报告（无删除按钮，可分享/留存）
 python3 scripts/build_report.py /tmp/janitor_analysis.json ~/Desktop/report.html
 ```
+
+录制公开教程时，使用不会暴露浏览器标签、书签和私人路径的独立窗口：
+
+```bash
+JANITOR_PUBLIC_OUTPUT=1 python3 scripts/scan.py > /tmp/janitor_analysis.json
+python3 scripts/validate_report.py /tmp/janitor_analysis.json
+python3 scripts/server.py /tmp/janitor_analysis.json --recording-mode
+```
+
+录屏模式下，页面会隐藏用户名、外置盘名称和深层目录；录屏期间投进回收站的真实文件会临时暂存，停止服务时自动恢复原位。
 
 > **作为 Agent Skill 用**：把本仓库放进 `~/.claude/skills/`（或你的 Agent 的 skills 目录），对 Claude Code / Codex 说下面任一句即可触发：
 >
@@ -108,9 +121,11 @@ python3 scripts/build_report.py /tmp/janitor_analysis.json ~/Desktop/report.html
 ## 🔒 安全模型
 
 - **只读扫描**：`scan.py` 只跑 `du`/`listdir`/`glob`，绝不写。
-- **成片零误删（双层红线）**：受保护文件的绝对路径构成保护集，`scan.py` 会剔除任何混入删除白名单的受保护路径；`server.py` 只接受报告里列出的可删路径、且必须在 `$HOME`/`/Applications` 下。
+- **成片零误删（双层红线）**：受保护文件的绝对路径构成保护集，`scan.py` 会剔除任何混入删除白名单的受保护路径；`server.py` 只接受本次报告明确列出的路径，且只允许位于用户目录、应用目录或已扫描外置盘。红灯永远不进入删除白名单。
 - **本地服务**：绑定 `127.0.0.1` + 随机端口 + 随机 token + 校验 Host 头（防 DNS-rebinding）。每次删除浏览器先二次确认。
 - **可逆优先**：默认「移废纸篓」，「直接删」是显式次选。
+- **三色验收**：打开页面前先运行 `validate_report.py`；报告缺任意一档、任意统计数字或安全提示时立即停止。
+- **公开录屏保护**：独立空白窗口不带个人浏览器信息，页面路径自动脱敏，录屏操作结束后自动还原暂存文件。
 
 ---
 

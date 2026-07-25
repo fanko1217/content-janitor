@@ -9,10 +9,10 @@ Usage:
     server.py <analysis.json>
 
 SAFETY MODEL — read before changing:
-- Allowlist: only paths listed in this report's green items `trash_paths` are
-  accepted. Every request path is realpath-resolved and must be in the allowlist
-  AND under $HOME. Anything else is rejected. This is the core guard — the
-  endpoint cannot be used to delete arbitrary files.
+- Allowlist: only paths listed in this report's green/yellow items are accepted.
+  Every request path is realpath-resolved and must be in the allowlist AND under
+  $HOME, /Applications, or /Volumes. Red-tier paths never enter the delete
+  allowlist. Anything else is rejected.
 - Bound to 127.0.0.1 only; every POST requires the session token; Host header
   must be 127.0.0.1 (blocks DNS-rebinding from a malicious page).
 - Two modes: "trash" (Finder -> Trash, reversible) and "rm" (immediate,
@@ -24,6 +24,8 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -38,6 +40,13 @@ TPL = ""
 RM_ALLOW = set()
 TRASH_ALLOW = set()
 OPEN_ALLOW = set()
+RECORDING_MODE = False
+RECORDING_MOVES = []
+RECORDING_DIRS = set()
+RECORDING_LOCK = threading.Lock()
+RECORDING_SESSION = "fanko-janitor-recording-restore-%d-%s" % (
+    os.getpid(), time.strftime("%H%M%S")
+)
 
 
 def expand(p):
@@ -78,12 +87,67 @@ def load(src):
 
 
 def move_to_trash(path):
+    if RECORDING_MODE:
+        _stage_for_recording(path)
+        return
     if sys.platform == "darwin":
         _trash_macos(path)
     elif sys.platform.startswith("win"):
         _trash_windows(path)
     else:
         raise OSError("移到废纸篓仅支持 macOS / Windows")
+
+
+def _recording_trash_root(path):
+    """Return a same-volume private Trash folder so staging is fast and reversible."""
+    if sys.platform == "darwin" and path.startswith("/Volumes/"):
+        parts = path.split(os.sep)
+        if len(parts) >= 3 and parts[2]:
+            return os.path.join("/Volumes", parts[2], ".Trashes", str(os.getuid()))
+    return os.path.join(HOME, ".Trash")
+
+
+def _stage_for_recording(path):
+    """Move a real allowlisted item aside and remember its exact original location."""
+    with RECORDING_LOCK:
+        base = _recording_trash_root(path)
+        stage_dir = os.path.join(base, RECORDING_SESSION)
+        os.makedirs(stage_dir, exist_ok=True)
+        dest = os.path.join(
+            stage_dir,
+            "%03d_%s" % (len(RECORDING_MOVES) + 1, os.path.basename(path.rstrip(os.sep)))
+        )
+        if os.path.exists(dest):
+            dest += "-" + secrets.token_hex(3)
+        shutil.move(path, dest)
+        RECORDING_MOVES.append((dest, path))
+        RECORDING_DIRS.add(stage_dir)
+
+
+def restore_recording_moves():
+    """Put every staged recording item back exactly where it came from."""
+    restored, errors = 0, []
+    with RECORDING_LOCK:
+        for staged, original in reversed(RECORDING_MOVES):
+            try:
+                if not os.path.exists(staged):
+                    if os.path.exists(original):
+                        restored += 1
+                        continue
+                    raise FileNotFoundError("暂存文件不存在：" + staged)
+                if os.path.exists(original):
+                    raise FileExistsError("原位置已被占用，未覆盖：" + original)
+                os.makedirs(os.path.dirname(original), exist_ok=True)
+                shutil.move(staged, original)
+                restored += 1
+            except Exception as exc:
+                errors.append("%s -> %s：%s" % (staged, original, exc))
+        for stage_dir in sorted(RECORDING_DIRS, key=len, reverse=True):
+            try:
+                os.rmdir(stage_dir)
+            except OSError:
+                pass
+    return restored, errors
 
 
 def _trash_macos(path):
@@ -198,7 +262,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             blob = json.dumps(DATA, ensure_ascii=False)
-            cfg = json.dumps({"token": TOKEN, "endpoint": "/action"})
+            cfg = json.dumps({
+                "token": TOKEN,
+                "endpoint": "/action",
+                "recording": bool(RECORDING_MODE),
+            })
             html = TPL.replace("__REPORT_DATA__", blob).replace("__DELETE_CONFIG__", cfg)
             self._send(200, html, "text/html; charset=utf-8")
         else:
@@ -258,19 +326,61 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    global DATA, TPL, RM_ALLOW, TRASH_ALLOW, OPEN_ALLOW
+    global DATA, TPL, RM_ALLOW, TRASH_ALLOW, OPEN_ALLOW, RECORDING_MODE
     DATA, TPL, RM_ALLOW, TRASH_ALLOW, OPEN_ALLOW = load(sys.argv[1])
     srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     port = srv.server_address[1]
     url = "http://127.0.0.1:%d/" % port
+    recording_mode = "--recording-mode" in sys.argv[2:]
+    RECORDING_MODE = recording_mode
     print("报告服务已启动：" + url)
-    print("绿灯可删 %d 项 | 橙灯可移废纸篓/打开文件夹 %d 项 | 页面上点" % (len(RM_ALLOW), len(TRASH_ALLOW) - len(RM_ALLOW)))
+    print("三色报告：绿灯 %d 项 | 黄灯 %d 项 | 红灯 %d 项（硬保护）" %
+          (len(DATA.get("green", [])), len(DATA.get("yellow", [])), len(DATA.get("red", []))))
     print("用完按 Ctrl+C 停止服务（服务关掉后按钮即失效）")
-    webbrowser.open(url)
+    recording_browser = None
+    recording_profile = None
+    if recording_mode and sys.platform == "darwin":
+        # 单独的临时空白 profile，避免 Chrome 把 app URL 塞回用户原有窗口。
+        chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if not os.path.exists(chrome):
+            raise OSError("未找到 Google Chrome，无法启动公开录屏模式")
+        recording_profile = tempfile.mkdtemp(prefix="fanko-janitor-recording-")
+        recording_browser = subprocess.Popen(
+            [
+                chrome,
+                "--user-data-dir=" + recording_profile,
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-sync",
+                "--disable-extensions",
+                "--remote-debugging-port=0",
+                "--kiosk",
+                "--app=" + url,
+            ],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        print("公开录屏模式：已用临时空白资料启动无浏览器栏的全屏窗口")
+        print("录屏保护：本次回收会暂存真实文件，停止服务时自动恢复原位")
+    else:
+        webbrowser.open(url)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         print("\n已停止服务。")
+    finally:
+        if recording_mode:
+            restored, restore_errors = restore_recording_moves()
+            print("录屏恢复：已还原 %d 项" % restored)
+            for err in restore_errors:
+                print("录屏恢复失败：" + err, file=sys.stderr)
+        if recording_browser and recording_browser.poll() is None:
+            recording_browser.terminate()
+            try:
+                recording_browser.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                recording_browser.kill()
+        if recording_profile:
+            shutil.rmtree(recording_profile, ignore_errors=True)
 
 
 if __name__ == "__main__":

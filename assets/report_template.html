@@ -9,6 +9,7 @@
     --bg:#F5EFE3; --bg2:#EFE7D6; --card:#FFFDF8; --ink:#3A3229; --sub:#9A8F7C;
     --line:#E7DEC9; --leaf:#5B9A6B; --leaf-d:#3F7A50; --amber:#E8894A; --amber-bg:#FBEBDC;
     --leaf-bg:#E6F1E5; --sky:#6FA8B5; --clay:#C6663B; --gold:#D9A441;
+    --red:#B64D45; --red-bg:#F8E7E4;
     --radius:20px; --shadow:0 2px 6px rgba(120,90,40,.06),0 14px 36px rgba(120,90,40,.09);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -72,8 +73,41 @@
   .prog-label{font-size:12px;color:var(--sub)}
   .hero-stats{display:flex;gap:26px;margin-top:16px;flex-wrap:wrap}
   .hs .k{font-size:12px;color:var(--sub)} .hs .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
-  .hs .v.green{color:var(--leaf-d)} .hs .v.amber{color:var(--clay)}
+  .hs .v.green{color:var(--leaf-d)} .hs .v.amber{color:var(--clay)} .hs .v.red{color:var(--red)}
   .disk-note{margin-top:14px;font-size:12.5px;color:var(--sub);border-top:1px dashed var(--line);padding-top:12px}
+
+  /* ---------- 三色分级总览：必须与口播一一对应 ---------- */
+  .tier-guide{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 22px}
+  .tier-card{appearance:none;text-align:left;border:1px solid var(--line);border-radius:18px;padding:17px 18px;
+    background:var(--card);box-shadow:var(--shadow);font-family:inherit;color:var(--ink);cursor:pointer;transition:.18s}
+  .tier-card:hover{transform:translateY(-2px)}
+  .tier-card.green{background:linear-gradient(135deg,#F8FFF8,var(--leaf-bg));border-color:#CBE3CE}
+  .tier-card.yellow{background:linear-gradient(135deg,#FFFCF7,var(--amber-bg));border-color:#F1D5B8}
+  .tier-card.red{background:linear-gradient(135deg,#FFF9F8,var(--red-bg));border-color:#EBC6C1}
+  .tier-name{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900}
+  .tier-dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 4px rgba(255,255,255,.75)}
+  .tier-card.green .tier-dot{background:var(--leaf)}
+  .tier-card.yellow .tier-dot{background:var(--amber)}
+  .tier-card.red .tier-dot{background:var(--red)}
+  .tier-section.green .tier-dot{background:var(--leaf)}
+  .tier-section.yellow .tier-dot{background:var(--amber)}
+  .tier-section.red .tier-dot{background:var(--red)}
+  .tier-value{font-size:24px;font-weight:900;margin-top:7px;font-variant-numeric:tabular-nums}
+  .tier-card.green .tier-value{color:var(--leaf-d)}
+  .tier-card.yellow .tier-value{color:var(--clay)}
+  .tier-card.red .tier-value{color:var(--red)}
+  .tier-desc{font-size:12.5px;color:var(--sub);margin-top:2px}
+
+  .tier-section{border-radius:24px;padding:18px;margin:0 0 22px;border:2px solid transparent}
+  .tier-section.green{background:rgba(230,241,229,.48);border-color:#CBE3CE}
+  .tier-section.yellow{background:rgba(251,235,220,.48);border-color:#F1D5B8}
+  .tier-section.red{background:rgba(248,231,228,.55);border-color:#EBC6C1}
+  .tier-section-head{display:flex;align-items:flex-start;gap:12px;padding:2px 2px 15px}
+  .tier-section-head .tier-dot{margin-top:7px;flex-shrink:0}
+  .tier-section-title{font-size:20px;font-weight:900}
+  .tier-section-sub{font-size:13px;color:var(--sub);margin-top:2px}
+  .tier-section-total{margin-left:auto;text-align:right;font-size:13px;color:var(--sub);white-space:nowrap}
+  .tier-section-total b{display:block;font-size:21px;color:var(--ink)}
 
   /* ---------- 回收台（bucket 分区）---------- */
   .station{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
@@ -146,6 +180,24 @@
   .audio-toggle.on .wave i:nth-child(3){animation-delay:.3s}
   .audio-toggle.on .wave i:nth-child(4){animation-delay:.45s}
   @keyframes eq{0%,100%{height:4px}50%{height:14px}}
+  .confirm-mask{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;
+    padding:24px;background:rgba(44,40,34,.48);backdrop-filter:blur(4px)}
+  .confirm-mask.show{display:flex}
+  .confirm-box{width:min(520px,calc(100vw - 48px));background:var(--card);border:1px solid var(--line);
+    border-radius:22px;box-shadow:0 22px 70px rgba(42,34,25,.28);padding:25px 26px 22px}
+  .confirm-title{font-size:19px;font-weight:900;display:flex;align-items:center;gap:9px}
+  .confirm-message{margin-top:11px;font-size:14px;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+  .confirm-note{font-size:12.5px;color:var(--leaf-d);background:var(--leaf-bg);border-radius:12px;
+    padding:9px 12px;margin-top:14px}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+  .confirm-actions .btn{min-width:86px;padding:9px 18px}
+  @media(max-width:720px){
+    .tier-guide{grid-template-columns:1fr}
+    .hero{padding-left:20px;padding-right:20px}
+    .tier-section{padding:12px}
+    .it{align-items:flex-start;flex-wrap:wrap}
+    .it-btns{width:100%;justify-content:flex-end}
+  }
 </style>
 </head>
 <body>
@@ -164,13 +216,31 @@
     <div class="prog"><i id="prog"></i></div>
     <div class="prog-label" id="progLabel"></div>
     <div class="hero-stats">
-      <div class="hs"><div class="k">闭眼可清(绿)</div><div class="v green" id="sGreen">–</div></div>
-      <div class="hs"><div class="k">需你判断</div><div class="v amber" id="sReview">–</div></div>
+      <div class="hs"><div class="k">🟢 绿灯·闭眼可删</div><div class="v green" id="sGreen">–</div></div>
+      <div class="hs"><div class="k">🟡 黄灯·需要判断</div><div class="v amber" id="sReview">–</div></div>
+      <div class="hs"><div class="k">🔴 红灯·硬保护</div><div class="v red" id="sRed">–</div></div>
       <div class="hs"><div class="k">共盘点</div><div class="v" id="sAcct">–</div></div>
       <div class="hs"><div class="k">扫到项目</div><div class="v" id="sProj">–</div></div>
-      <div class="hs"><div class="k">已保护成片</div><div class="v" id="sProt">–</div></div>
     </div>
     <div class="disk-note" id="diskNote"></div>
+  </div>
+
+  <div class="tier-guide" aria-label="三色分级总览">
+    <button class="tier-card green" onclick="jumpTier('tier-green')">
+      <span class="tier-name"><i class="tier-dot"></i>绿灯·闭眼可删</span>
+      <span class="tier-value" id="gGuide">–</span>
+      <span class="tier-desc">缓存和已出成片的可再生中间产物</span>
+    </button>
+    <button class="tier-card yellow" onclick="jumpTier('tier-yellow')">
+      <span class="tier-name"><i class="tier-dot"></i>黄灯·需要判断</span>
+      <span class="tier-value" id="yGuide">–</span>
+      <span class="tier-desc">大文件、应用和未出成片的项目素材</span>
+    </button>
+    <button class="tier-card red" onclick="jumpTier('tier-red')">
+      <span class="tier-name"><i class="tier-dot"></i>红灯·硬保护</span>
+      <span class="tier-value" id="rGuide">–</span>
+      <span class="tier-desc">成片、定稿和工程源文件，不进入删除白名单</span>
+    </button>
   </div>
 
   <div id="tip"></div>
@@ -182,13 +252,40 @@
   </footer>
 </div>
 <div class="toast" id="toast"></div>
+<div class="confirm-mask" id="confirmMask" aria-hidden="true">
+  <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="confirm-title" id="confirmTitle">♻ 确认回收</div>
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="confirm-note" id="confirmNote">默认移到废纸篓，可恢复；清空废纸篓后才会真正释放空间。</div>
+    <div class="confirm-actions">
+      <button class="btn open" id="confirmCancel" type="button">取消</button>
+      <button class="btn recycle" id="confirmOk" type="button">确认回收</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const DATA = __REPORT_DATA__;
-const DELETE = __DELETE_CONFIG__;   // null=静态只读；{token,endpoint}=可一键回收
+const DELETE = __DELETE_CONFIG__;   // null=静态只读；{token,endpoint,recording}=可一键回收
 const FM = '访达';
+const RECORDING = !!(DELETE && DELETE.recording);
 
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function publicPath(p){
+  let s=String(p||'').replace(/^\/Users\/[^/]+/,'~');
+  if(!RECORDING) return s;
+  // 公开录屏只保留“位置类型 + 文件名”。磁盘名、频道名和深层目录都不出镜。
+  s=s.replace(/^\/Volumes\/[^/]+/,'/Volumes/外置盘');
+  if(s.startsWith('/Volumes/外置盘/')){
+    const parts=s.split('/').filter(Boolean);
+    return parts.length>3 ? `/Volumes/外置盘/…/${parts[parts.length-1]}` : s;
+  }
+  if(s.startsWith('~/')){
+    const parts=s.slice(2).split('/').filter(Boolean);
+    return parts.length>2 ? `~/…/${parts[parts.length-1]}` : s;
+  }
+  return s;
+}
 const b64 = o => btoa(unescape(encodeURIComponent(JSON.stringify(o))));
 const unb64 = s => JSON.parse(decodeURIComponent(escape(atob(s))));
 function parseGB(str){const m=String(str||'').match(/([\d.]+)\s*(TB|GB|MB|KB)?/i);if(!m)return 0;
@@ -213,15 +310,44 @@ function paintHero(){
     `净化进度 ${done.toFixed(0)}%　（本次已回收 ${recycledGB.toFixed(1)} GB / 可回收共 ${totalReclaimable.toFixed(1)} GB）`;
   document.getElementById('sGreen').textContent = (S.tier_stats&&S.tier_stats.green)||'–';
   document.getElementById('sReview').textContent = (S.tier_stats&&S.tier_stats.yellow)||'–';
+  document.getElementById('sRed').textContent = (S.tier_stats&&S.tier_stats.red)||'–';
   document.getElementById('sAcct').textContent = S.accounted_gb?('约 '+S.accounted_gb+' GB'):'–';
   document.getElementById('sProj').textContent = S.total_projects||'–';
-  document.getElementById('sProt').textContent = DATA._protected_count||(DATA.red?DATA.red.length:0);
+  document.getElementById('gGuide').textContent = (S.tier_stats&&S.tier_stats.green)||'–';
+  document.getElementById('yGuide').textContent = (S.tier_stats&&S.tier_stats.yellow)||'–';
+  document.getElementById('rGuide').textContent =
+    `${(S.tier_stats&&S.tier_stats.red)||'–'} · ${DATA._protected_count||(DATA.red?DATA.red.length:0)} 项`;
   const sys=DATA.system||{};
   document.getElementById('diskNote').textContent =
     `💽 系统盘 ${esc(sys.disk_name||'')} ${esc(sys.disk_used||'')} / ${esc(sys.disk_total||'')} 已用　·　剩余 ${esc(sys.disk_free||'')}　·　扫描 ${DATA.scan_seconds||'?'}s`;
   paintScene();
 }
 let recycledGB = 0;
+function jumpTier(id){ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+let confirmResolve=null;
+function askConfirm(message,{danger=false,title='♻ 确认回收'}={}){
+  const mask=document.getElementById('confirmMask');
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMessage').textContent=message;
+  document.getElementById('confirmNote').textContent=danger
+    ? '这是不可恢复操作。公开演示和日常清理都优先使用“投进回收站”。'
+    : '默认移到废纸篓，可恢复；清空废纸篓后才会真正释放空间。';
+  const ok=document.getElementById('confirmOk');
+  ok.textContent=danger?'确认直接删除':'确认回收';
+  ok.className=danger?'btn hard':'btn recycle';
+  mask.classList.add('show'); mask.setAttribute('aria-hidden','false');
+  setTimeout(()=>ok.focus(),0);
+  return new Promise(resolve=>{confirmResolve=resolve;});
+}
+function closeConfirm(value){
+  const mask=document.getElementById('confirmMask');
+  mask.classList.remove('show'); mask.setAttribute('aria-hidden','true');
+  const resolve=confirmResolve; confirmResolve=null; if(resolve) resolve(value);
+}
+document.getElementById('confirmCancel').onclick=()=>closeConfirm(false);
+document.getElementById('confirmOk').onclick=()=>closeConfirm(true);
+document.getElementById('confirmMask').addEventListener('click',e=>{if(e.target===e.currentTarget)closeConfirm(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&confirmResolve)closeConfirm(false);});
 
 // ---------- 会生长的森林（纯 SVG，回收越多树越绿）----------
 function treeSVG(lit, w){
@@ -235,7 +361,14 @@ function treeSVG(lit, w){
     <circle cx="24" cy="32" r="12" fill="${c[1]}"/></svg>`;
 }
 // 蚂蚁森林式：中央一棵会长大的大树 + 悬浮能量球（点击收集→飞入→树成长+粒子）
-function treeStage(){ const g=(recycledGB||0); return g<0.5?0:g<8?1:g<25?2:g<55?3:4; }
+function treeStage(){
+  // 能量球按“收集次数”逐级成长，避免连续回收多个小缓存时视觉变化不明显。
+  // 非能量球操作仍按已回收容量兜底。
+  const n=collected.size;
+  if(n>0) return Math.min(4,n);
+  const g=(recycledGB||0);
+  return g<0.5?0:g<8?1:g<25?2:g<55?3:4;
+}
 function bigTreeSVG(stage){
   // 用系统 emoji 真树（专业彩色插画，放大后精致立体），按成长阶段换 emoji + 尺寸
   const em=['🌱','🌿','🌳','🌳','🌳'][stage];
@@ -272,11 +405,14 @@ function paintScene(){
 // ---------- 能量球 ----------
 const collected=new Set();
 const orbKey=it=>((it.trash_paths&&it.trash_paths[0])||it.path);
+const featuredOrbs=(DATA.green||[])
+  .slice().sort((a,b)=>parseGB(b.size_estimate)-parseGB(a.size_estimate)).slice(0,5);
 function renderOrbs(){
   const layer=document.getElementById('orbs'); if(!layer) return;
   if(!DELETE){ layer.innerHTML=''; return; }
-  const avail=(DATA.green||[]).filter(it=>!collected.has(orbKey(it)))
-    .sort((a,b)=>parseGB(b.size_estimate)-parseGB(a.size_estimate)).slice(0,5);
+  // 首屏固定展示本次最值得处理的 5 颗球；收集后不再补入新球，
+  // 这样观众能清楚看到“逐颗清空 → 树完整长大”的闭环。
+  const avail=featuredOrbs.filter(it=>!collected.has(orbKey(it)));
   const pos=[[5,158],[15,112],[25,170],[12,64],[27,100]];
   layer.innerHTML=avail.map((it,i)=>{
     const [r,b]=pos[i%pos.length], g=parseGB(it.size_estimate);
@@ -286,9 +422,10 @@ function renderOrbs(){
       data-name="${esc(it.name)}" onclick="collectOrb(this)" title="${esc(it.name)}">${lbl}</div>`;
   }).join('');
 }
-function collectOrb(el){
+async function collectOrb(el){
   const paths=unb64(el.dataset.p), gb=parseFloat(el.dataset.gb), key=el.dataset.key, name=el.dataset.name;
-  if(!confirm(`收集这颗能量球 🌱\n回收「${name}」约 ${gb.toFixed(2)} GB → 移废纸篓（可逆）？`)) return;
+  const ok=await askConfirm(`收集这颗能量球 🌱\n\n回收「${name}」约 ${gb.toFixed(2)} GB`);
+  if(!ok) return;
   el.style.pointerEvents='none';
   postAction(paths,'trash').then(r=>{
     if(!r.ok){ el.style.pointerEvents='auto'; toast('✗ '+(r.error||'失败')); return; }
@@ -355,7 +492,7 @@ function renderItem(it, kind){
     <div class="it-main">
       <div class="it-name">${esc(it.name)}</div>
       <div class="it-note">${esc(it.note||it.content_profile||'')}</div>
-      <div class="path">${esc((it.path||'').replace(/^\/Users\/[^/]+/,'~'))}</div>
+      <div class="path">${esc(publicPath(it.path||''))}</div>
     </div>
     <span class="it-size">${esc(size)}</span>
     <span class="it-badge" style="display:none"></span>
@@ -363,22 +500,24 @@ function renderItem(it, kind){
   </div>`;
 }
 
-function renderStation(b){
+function renderStation(b, tier){
   const {g,y}=itemsOfBucket(b.key);
-  const isReviewBucket = (b.key==='big'||b.key==='app');
-  const rows = g.map(it=>renderItem(it, it.bucket==='dup'?'merge':'recycle')).join('')
-             + y.map(it=>renderItem(it,'review')).join('');
+  const items = tier==='green' ? g : y;
+  const rows = tier==='green'
+    ? items.map(it=>renderItem(it, it.bucket==='dup'?'merge':'recycle')).join('')
+    : items.map(it=>renderItem(it,'review')).join('');
   if(!rows) return '';
-  const cnt=g.length+y.length;
-  // 绿桶给「全部投进回收站」；review 桶不给批量
-  const batch = (DELETE && !isReviewBucket && g.length)
+  const cnt=items.length;
+  const gb=items.reduce((n,it)=>n+parseGB(it.size_estimate||it.size),0);
+  // 只有绿灯给批量回收；黄灯必须逐项判断
+  const batch = (DELETE && tier==='green' && items.length)
     ? `<span class="st-actions"><button class="btn recycle" onclick="batchRecycle(this)">全部投进回收站</button><span class="st-status"></span></span>`
     : '';
   return `<div class="station" data-key="${b.key}">
     <div class="st-head" onclick="this.parentNode.classList.toggle('open')">
       <span class="st-icon">${b.icon}</span>
       <div><div class="st-title">${esc(b.label)}</div><div class="st-hint">${esc(b.hint)}</div></div>
-      <div class="st-right"><div class="st-gb">${b.gb.toFixed(1)} GB</div><div class="st-cnt">${cnt} 项</div></div>
+      <div class="st-right"><div class="st-gb">${gb.toFixed(1)} GB</div><div class="st-cnt">${cnt} 项</div></div>
       <span class="st-chev">▶</span>
     </div>
     ${batch?`<div class="st-bar">${batch}</div>`:''}
@@ -396,13 +535,41 @@ function renderVault(){
       <div class="it-note">${esc(it.why_keep||'成片/定稿，硬保护')}</div></div>
     <span class="it-size">${esc(it.size||'')}</span></div>`).join('');
   const more=red.length>40?`<div class="empty">…另有 ${red.length-40} 项受保护，同样永不删</div>`:'';
-  return `<div class="vault station"><div class="st-head" onclick="this.closest('.station').classList.toggle('open')">
+  return `<div class="vault station open"><div class="st-head" onclick="this.closest('.station').classList.toggle('open')">
     <span class="st-icon">🔒</span>
-    <div><div class="st-title">已封存 · 成片/定稿保护区</div>
+    <div><div class="st-title">红灯清单 · 已封存成片/定稿</div>
       <div class="st-hint">本工具永不删，仅供你核对识别是否正确</div></div>
     <div class="st-right"><div class="st-gb" style="color:var(--sub)">保护</div>
       <div class="st-cnt">${red.length} 项</div></div><span class="st-chev">▶</span></div>
     <div class="st-body">${rows}${more}</div></div>`;
+}
+
+function renderTierSection(tier,buckets){
+  const isGreen=tier==='green';
+  const id=isGreen?'tier-green':'tier-yellow';
+  const title=isGreen?'绿灯·闭眼可删':'黄灯·需要判断';
+  const sub=isGreen
+    ? '只包含删后可自动重建，或已确认存在成片、能够重新生成的中间产物。'
+    : '工具只把风险项摆出来；请逐项查看，再由你自己决定。';
+  const stat=(S.tier_stats&&S.tier_stats[tier])||'–';
+  const count=(DATA[tier]||[]).length;
+  const body=buckets.map(b=>renderStation(b,tier)).join('')||'<div class="empty">这一档没有项目</div>';
+  return `<section class="tier-section ${tier}" id="${id}">
+    <div class="tier-section-head"><i class="tier-dot"></i>
+      <div><div class="tier-section-title">${title}</div><div class="tier-section-sub">${sub}</div></div>
+      <div class="tier-section-total"><b>${esc(stat)}</b>${count} 项</div>
+    </div>${body}</section>`;
+}
+
+function renderRedSection(){
+  const stat=(S.tier_stats&&S.tier_stats.red)||'–';
+  const count=DATA._protected_count||(DATA.red||[]).length;
+  return `<section class="tier-section red" id="tier-red">
+    <div class="tier-section-head"><i class="tier-dot"></i>
+      <div><div class="tier-section-title">红灯·硬保护</div>
+        <div class="tier-section-sub">成片、定稿和工程源文件不进入删除白名单；即使误点，服务也会拒绝。</div></div>
+      <div class="tier-section-total"><b>${esc(stat)}</b>${count} 项</div>
+    </div>${renderVault()}</section>`;
 }
 
 // ---------- 动作 ----------
@@ -426,12 +593,18 @@ function markRecycled(itEl){
   paintHero();
 }
 
-function act(btn){
+async function act(btn){
   const paths=unb64(btn.dataset.p), mode=btn.dataset.m;
   const itEl=btn.closest('.it');
   if(mode==='open'){ postAction(paths,'open').then(r=>{ toast(r.ok?'已在'+FM+'打开，自己审查删除':'✗ '+(r.error||'失败')); }); return; }
   const verb = mode==='rm' ? '直接删除（不可恢复）' : '投进回收站（移废纸篓，可逆）';
-  if(!confirm(`确认${verb}？\n\n`+paths.join('\n'))) return;
+  const label=(itEl.querySelector('.it-name')||{}).textContent||'所选项目';
+  const visiblePaths=paths.map(publicPath).join('\n');
+  const detail=visiblePaths.trim()===label.trim()?label:`${label}\n${visiblePaths}`;
+  const ok=await askConfirm(`${verb}\n\n${detail}`,{
+    danger:mode==='rm',title:mode==='rm'?'🗑 确认直接删除':'♻ 确认投进回收站'
+  });
+  if(!ok) return;
   const btns=itEl.querySelectorAll('.btn'); btns.forEach(b=>b.disabled=true);
   postAction(paths,mode).then(r=>{
     if(r.ok){ markRecycled(itEl); toast(mode==='rm'?'🗑 已删除':'♻ 已投进回收站 +🌱'); }
@@ -439,7 +612,7 @@ function act(btn){
   });
 }
 
-function batchRecycle(btn){
+async function batchRecycle(btn){
   const station=btn.closest('.station');
   const items=[...station.querySelectorAll('.it')].filter(el=>!el.classList.contains('done'));
   const paths=[]; let gb=0;
@@ -447,7 +620,8 @@ function batchRecycle(btn){
     if(b){unb64(b.dataset.p).forEach(p=>paths.push(p));gb+=parseFloat(el.dataset.gb||0);}});
   if(!paths.length){toast('这个台子没有可批量回收的项');return;}
   const status=btn.parentNode.querySelector('.st-status');
-  if(!confirm(`把这个回收台的 ${items.length} 项全部投进回收站？\n共 ${paths.length} 个路径，约 ${gb.toFixed(1)} GB。可逆。`)) return;
+  const ok=await askConfirm(`把这个回收台的 ${items.length} 项全部投进回收站\n\n共 ${paths.length} 个路径，约 ${gb.toFixed(1)} GB`);
+  if(!ok) return;
   btn.disabled=true; status.textContent='回收中…';
   postAction(paths,'trash').then(r=>{
     if(r.ok){ items.forEach(el=>{const b=el.querySelector('.btn.recycle[data-m="trash"]');if(b)markRecycled(el);});
@@ -525,8 +699,14 @@ function sfxRecycle(){
 
 // ---------- mount ----------
 (function(){
-  const buckets=(S.buckets||[]).filter(b=>b.gb>0.05);
-  let html = buckets.map(renderStation).join('') + renderVault();
+  // 不能按体积隐藏分组；再小的扫描项也必须在报告里有去向。
+  const buckets=(S.buckets||[]).filter(b=>{
+    const items=itemsOfBucket(b.key);
+    return items.g.length>0||items.y.length>0;
+  });
+  let html = renderTierSection('green',buckets)
+    + renderTierSection('yellow',buckets)
+    + renderRedSection();
   if(!html) html='<div class="empty">没扫到可回收的东西，硬盘很干净 🎉</div>';
   document.getElementById('app').innerHTML = html;
   // 默认展开体积最大的头两个台子
