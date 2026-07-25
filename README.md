@@ -17,7 +17,7 @@
 一个开源的 **Agent Skill / 独立脚本**，只读扫描你整台电脑真正占空间的垃圾，按「回收台」分类，用治愈的蚂蚁森林式网页让你**一键回收**。兼容 Claude Code、Codex 等支持 Agent Skills 的工具，也能当纯 Python 脚本直接跑。
 
 <p align="center">
-  <img src="docs/screenshot.png" width="780" alt="内容回收厂 · 蚂蚁森林式清理报告：可回收空间大数字 + 能量球 + 会长大的树 + 回收台分类">
+  <img src="docs/screenshot-20260726-safety-fix.png" width="780" alt="内容回收厂 · 安全修复后的真实扫描：10.1 GB 绿灯、144.7 GB 黄灯、1658.9 GB 红灯">
 </p>
 
 > 截图来自 2026-07-26 的真实全盘复扫。收紧「成片保险丝」后，未明确出片的项目从绿灯降为黄灯：绿灯 10.1 GB、黄灯 144.7 GB、红灯 1658.9 GB，共盘点 1944.2 GB。

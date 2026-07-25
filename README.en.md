@@ -16,7 +16,7 @@
 An open-source **Agent Skill / standalone script** that read-only scans your whole machine for what actually eats disk, groups it into "recycling stations", and lets you **clean it up in one click** through a healing Ant-Forest webpage. Works with Claude Code, Codex, and other Agent-Skills tools — or run it as a plain Python script.
 
 <p align="center">
-  <img src="docs/screenshot.png" width="780" alt="Content Janitor — Ant-Forest style cleanup report">
+  <img src="docs/screenshot-20260726-safety-fix.png" width="780" alt="Content Janitor — real post-safety-fix scan: 10.1 GB green, 144.7 GB yellow, 1658.9 GB red">
 </p>
 
 > The screenshot is from a real full-disk rescan on 2026-07-26. After tightening the finished-project safety fuse, projects without an explicit final were downgraded from green to yellow: 10.1 GB green, 144.7 GB yellow, 1658.9 GB red, 1944.2 GB audited in total.
