@@ -19,6 +19,8 @@ An open-source **Agent Skill / standalone script** that read-only scans your who
   <img src="docs/screenshot.png" width="780" alt="Content Janitor — Ant-Forest style cleanup report">
 </p>
 
+> The screenshot is from a real full-disk rescan on 2026-07-26. After tightening the finished-project safety fuse, projects without an explicit final were downgraded from green to yellow: 10.1 GB green, 144.7 GB yellow, 1658.9 GB red, 1944.2 GB audited in total.
+
 ## ✨ Highlights
 
 - **🎮 Cleanup = growing a tree** — reclaimable items become glowing **energy orbs**; tap to collect → orb flies in → particles burst → the central tree grows (🌱→🌿→🌳→blossom).
