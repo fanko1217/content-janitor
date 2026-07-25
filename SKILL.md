@@ -90,6 +90,10 @@ python3 scripts/build_report.py /tmp/janitor_analysis.json ~/Desktop/内容清�
 
 「一期是否已出成片」由每个频道的 `finished_globs` 判定——成片存在，其中间产物(clips/图)才允许进 🟢 可删；没检测到成片就降 🟡 让你确认，绝不赌。不同项目成片放的位置不同，配置示例：
 
+**保险丝规则**：受保护不等于已经出成片。`project.json`、工程配置和定稿文稿
+只能进入红灯保护，不能触发中间产物进绿灯。`finished_globs` 留空时，只允许
+`auto_finished_globs` 中的明确成片视频触发绿灯。
+
 | 结构类型 | `layout` | 成片规则 `finished_globs` 举例 |
 |---|---|---|
 | 每期在 `projects/` 下、成片在 output/ | `projects` | `["output/final*.mp4"]` |

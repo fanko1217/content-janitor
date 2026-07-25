@@ -73,6 +73,15 @@
       "project.json",
       "compose_manifest.json"
     ],
+    "auto_finished_globs": [
+      "*完整合成*.mp4",
+      "*完整成片*.mp4",
+      "*成片*.mp4",
+      "*最终版*.mp4",
+      "final*.mp4",
+      "output/final*.mp4"
+    ],
+    "auto_finished_depth": 3,
     "junk_names": [
       "old_do_not_use*",
       "*_old",

@@ -133,6 +133,10 @@ python3 scripts/server.py /tmp/janitor_analysis.json --recording-mode
 
 只有 `channels.json` 是你的私人配置（含真实项目路径），已被 `.gitignore` 忽略、不会误传。核心是每个频道的 `finished_globs`——判断一期是否已出成片的规则，**成片存在，其中间产物才允许被清**，没检测到成片就降级为「需你判断」，绝不赌。详见 `channels.example.json` 注释。
 
+外置归档盘如果把 `finished_globs` 留空，会使用一组保守的
+`auto_finished_globs` 自动寻找明确的成片视频。`project.json`、工程配置和定稿文稿
+虽然仍受红灯保护，但不会被误当成“已经出成片”的证明。
+
 ---
 
 ## 🌟 关于作者 · Fanko AI 范式

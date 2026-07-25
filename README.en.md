@@ -44,6 +44,12 @@ python3 scripts/scan.py > /tmp/janitor_analysis.json
 python3 scripts/server.py /tmp/janitor_analysis.json   # opens the Ant-Forest report; Ctrl+C to stop
 ```
 
+`finished_globs` is the safety fuse for creator projects: intermediates turn
+green only when an explicit final-video pattern matches. If it is left empty for
+an archive drive, conservative `auto_finished_globs` rules look only for clear
+final-video files. Protected project files such as `project.json`, config files,
+and master text remain red, but never count as proof that a final exists.
+
 > **As an Agent Skill**: drop this repo into `~/.claude/skills/` and tell Claude Code / Codex `clean my disk` / `what's eating my storage`.
 
 ## 🗂 Recycling Stations

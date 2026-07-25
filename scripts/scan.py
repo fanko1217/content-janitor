@@ -131,12 +131,40 @@ def dup_key(name, rules):
     return k.strip("_ ")
 
 
+DEFAULT_AUTO_FINISHED_GLOBS = (
+    "*完整合成*.mp4",
+    "*完整成片*.mp4",
+    "*成片*.mp4",
+    "*最终版*.mp4",
+    "final*.mp4",
+    "output/final*.mp4",
+)
+
+
 def subtree_has_finished(path, rules):
-    """本层或下一层是否存在成片/定稿（protected_file_globs 命中即视为已出片）。"""
-    import glob as _g
-    for pat in rules["protected_file_globs"]:
-        if _g.glob(os.path.join(path, pat)) or _g.glob(os.path.join(path, "*", pat)):
-            return True
+    """在限定深度内寻找明确成片。
+
+    protected_file_globs 还包含 project.json、工程配置和定稿文稿；这些文件
+    必须受保护，但不能证明项目已经出成片，所以这里使用独立的保守规则。
+    """
+    pats = rules.get("auto_finished_globs") or DEFAULT_AUTO_FINISHED_GLOBS
+    max_depth = int(rules.get("auto_finished_depth", rules.get("drill_depth", 3)))
+    base = os.path.realpath(path)
+    for root, dirs, files in os.walk(base):
+        rel_root = os.path.relpath(root, base)
+        depth = 0 if rel_root == "." else len(rel_root.split(os.sep))
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith(".") and not os.path.islink(os.path.join(root, d))
+        ]
+        if depth >= max_depth:
+            dirs[:] = []
+        for name in files:
+            if name.startswith("._") or name.startswith("."):
+                continue
+            rel = name if rel_root == "." else os.path.join(rel_root, name)
+            if any(fnmatch.fnmatch(name, pat) or fnmatch.fnmatch(rel, pat) for pat in pats):
+                return True
     return False
 
 
