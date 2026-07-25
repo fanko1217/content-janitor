@@ -125,8 +125,31 @@ def _stage_for_recording(path):
 
 
 def restore_recording_moves():
-    """Put every staged recording item back exactly where it came from."""
+    """Put every staged recording item back exactly where it came from.
+
+    Some live apps recreate a cache directory immediately after it is staged.
+    In that case, keep the staged original authoritative, move the freshly
+    recreated directory aside, restore the original atomically, then merge only
+    newly-created files back into it.  This preserves both the pre-recording
+    cache and any harmless cache files created during the demo.
+    """
     restored, errors = 0, []
+
+    def merge_missing(src, dst):
+        if os.path.isdir(src) and not os.path.islink(src):
+            os.makedirs(dst, exist_ok=True)
+            for name in os.listdir(src):
+                s = os.path.join(src, name)
+                d = os.path.join(dst, name)
+                if not os.path.exists(d):
+                    shutil.move(s, d)
+                elif os.path.isdir(s) and os.path.isdir(d):
+                    merge_missing(s, d)
+            try:
+                os.rmdir(src)
+            except OSError:
+                pass
+
     with RECORDING_LOCK:
         for staged, original in reversed(RECORDING_MOVES):
             try:
@@ -135,9 +158,24 @@ def restore_recording_moves():
                         restored += 1
                         continue
                     raise FileNotFoundError("暂存文件不存在：" + staged)
-                if os.path.exists(original):
-                    raise FileExistsError("原位置已被占用，未覆盖：" + original)
                 os.makedirs(os.path.dirname(original), exist_ok=True)
+                if os.path.exists(original):
+                    if not (os.path.isdir(staged) and os.path.isdir(original)):
+                        raise FileExistsError("原位置已被占用，未覆盖：" + original)
+                    recreated = os.path.join(
+                        os.path.dirname(staged),
+                        "recreated_%s_%s" % (
+                            os.path.basename(original.rstrip(os.sep)),
+                            secrets.token_hex(3),
+                        ),
+                    )
+                    shutil.move(original, recreated)
+                    shutil.move(staged, original)
+                    merge_missing(recreated, original)
+                    if os.path.exists(recreated):
+                        shutil.rmtree(recreated)
+                    restored += 1
+                    continue
                 shutil.move(staged, original)
                 restored += 1
             except Exception as exc:
